@@ -76,7 +76,7 @@ docker compose up -d postgres redis elasticsearch nacos
 后端：
 
 ```powershell
-Set-Location backend
+Set-Location issuetracker-end
 mvn -s .mvn/settings.xml spring-boot:run
 ```
 
@@ -120,7 +120,7 @@ npm.cmd run dev
 ## 目录
 
 ```text
-backend/   Spring Boot API、Flyway 数据库迁移、单元测试
+issuetracker-end/   Spring Boot API、Flyway 数据库迁移、单元测试
 frontend/  Vue 3 管理界面
 docker-compose.yml
 ```

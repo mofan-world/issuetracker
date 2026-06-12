@@ -2,7 +2,7 @@ name: issue-tracker
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:16
     environment:
       POSTGRES_DB: issue_tracker
       POSTGRES_USER: issue_tracker
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
@@ -50,22 +50,28 @@ services:
     restart: unless-stopped
 
   nacos:
-    image: nacos/nacos-server:v3.0.3
+    image: nacos/nacos-server:v3.2.2
     environment:
       MODE: standalone
       NACOS_AUTH_ENABLE: "false"
-      NACOS_AUTH_TOKEN: "VGhpc0lzQVRlc3RTZWNyZXRLZXlGb3JOYWNvczIwMjY="
-      NACOS_AUTH_IDENTITY_KEY: "issue-tracker"
-      NACOS_AUTH_IDENTITY_VALUE: "issue-tracker-local"
+      NACOS_AUTH_TOKEN: "U2VjcmV0S2V5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5Cg=="
+      NACOS_AUTH_IDENTITY_KEY: "serverIdentity"
+      NACOS_AUTH_IDENTITY_VALUE: "security"
     ports:
       - "8081:8080"
       - "8848:8848"
       - "9848:9848"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8848/nacos/v1/ns/operator/metrics || exit 1"]
+      start_period: 10s
+      interval: 15s
+      timeout: 5s
+      retries: 20
 
-  backend:
+  issuetracker-end:
     build:
-      context: ./backend
+      context: ./issuetracker-end
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/issue_tracker
       DB_USERNAME: issue_tracker
@@ -101,7 +107,7 @@ services:
     build:
       context: ./frontend
     depends_on:
-      backend:
+      issuetracker-end:
         condition: service_healthy
     ports:
       - "80:80"
@@ -111,3 +117,6 @@ volumes:
   postgres_data:
   redis_data:
   elasticsearch_data:
+  nacos_data:
+  nacos_conf:
+  nacos_logs:

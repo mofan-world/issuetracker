@@ -9,6 +9,10 @@ import { useAuthStore } from '@/stores/auth'
 import type { PageResult, TicketPriority, TicketStatus, TicketSummary } from '@/types'
 import { priorityLabels, priorityTypes, statusLabels, statusTypes } from '@/utils/ticket'
 
+interface Ticket {
+  id: number | string
+}
+
 const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(false)
@@ -47,6 +51,25 @@ function search() {
   query.page = 1
   load()
 }
+const handleRowClick = (row: Ticket) => {
+  router.push(`/tickets/${row.id}`)
+}
+
+const getPriorityType = (priority: TicketPriority) => {
+  return priorityTypes[priority]
+}
+
+const getPriorityLabel = (priority: TicketPriority) => {
+  return priorityLabels[priority]
+}
+
+const getStatusType = (status: TicketStatus) => {
+  return statusTypes[status]
+}
+
+const getStatusLabel = (status: TicketStatus) => {
+  return statusLabels[status]
+}
 
 onMounted(load)
 </script>
@@ -81,7 +104,7 @@ onMounted(load)
         <el-button @click="search">查询</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="tickets" row-key="id" @row-click="(row) => router.push(`/tickets/${row.id}`)">
+      <el-table v-loading="loading" :data="tickets" row-key="id" @row-click="handleRowClick">
         <el-table-column prop="ticketNo" label="编号" width="205">
           <template #default="{ row }"><span class="ticket-no">{{ row.ticketNo }}</span></template>
         </el-table-column>
@@ -89,12 +112,16 @@ onMounted(load)
         <el-table-column prop="category" label="分类" width="120" />
         <el-table-column label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag :type="priorityTypes[row.priority]" effect="light">{{ priorityLabels[row.priority] }}</el-tag>
+            <el-tag :type="getPriorityType(row.priority)" effect="light">
+              {{ getPriorityLabel(row.priority) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="statusTypes[row.status]" effect="plain">{{ statusLabels[row.status] }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" effect="plain">
+              {{ getStatusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="处理人" width="130">
