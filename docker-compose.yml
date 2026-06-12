@@ -1,0 +1,113 @@
+name: issue-tracker
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: issue_tracker
+      POSTGRES_USER: issue_tracker
+      POSTGRES_PASSWORD: issue_tracker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U issue_tracker -d issue_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.1
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  nacos:
+    image: nacos/nacos-server:v3.0.3
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: "VGhpc0lzQVRlc3RTZWNyZXRLZXlGb3JOYWNvczIwMjY="
+      NACOS_AUTH_IDENTITY_KEY: "issue-tracker"
+      NACOS_AUTH_IDENTITY_VALUE: "issue-tracker-local"
+    ports:
+      - "8081:8080"
+      - "8848:8848"
+      - "9848:9848"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/issue_tracker
+      DB_USERNAME: issue_tracker
+      DB_PASSWORD: issue_tracker
+      REDIS_HOST: redis
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_ENABLED: "true"
+      NACOS_USERNAME: nacos
+      NACOS_PASSWORD: nacos
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-production-secret-at-least-32-bytes}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@123456}
+      CORS_ALLOWED_ORIGINS: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
