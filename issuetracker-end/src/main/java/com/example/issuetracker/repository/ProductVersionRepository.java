@@ -3,6 +3,7 @@ package com.example.issuetracker.repository;
 import com.example.issuetracker.domain.ProductVersion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -17,6 +18,9 @@ public interface ProductVersionRepository extends JpaRepository<ProductVersion, 
             String versionNo, String name, Pageable pageable);
 
     List<ProductVersion> findByEnabledTrueOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"parent"})
+    List<ProductVersion> findAllByOrderByVersionNoAsc();
 
     boolean existsByParentId(Long parentId);
 

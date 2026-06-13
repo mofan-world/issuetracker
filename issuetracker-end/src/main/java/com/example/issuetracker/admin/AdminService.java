@@ -108,7 +108,7 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "roles", key = "'v2:all'")
+    @Cacheable(cacheNames = "roles", key = "'v3:all'")
     public List<RoleView> listRoles() {
         return roleRepository.findAll().stream()
                 .map(role -> new RoleView(

@@ -16,6 +16,7 @@ import type {
 import { priorityLabels, priorityTypes, statusLabels, statusTypes } from '@/utils/ticket'
 import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
 import SafeMarkdownContent from '@/components/SafeMarkdownContent.vue'
+import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -85,6 +86,7 @@ async function load() {
         {
           ...detail.affectedVersion,
           status: 'ARCHIVED',
+          enabled: false,
           depth: 1,
           pathLabel: detail.affectedVersion.versionNo,
         },
@@ -474,14 +476,11 @@ onMounted(load)
             </el-select>
           </el-form-item>
           <el-form-item label="问题所在版本" required>
-            <el-select v-model="editForm.affectedVersionId" filterable class="full-width">
-              <el-option
-                v-for="version in versions"
-                :key="version.id"
-                :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
-                :value="version.id"
-              />
-            </el-select>
+            <VersionTreeSelect
+              v-model="editForm.affectedVersionId"
+              :options="versions"
+              placeholder="请选择或搜索问题所在版本"
+            />
           </el-form-item>
         </div>
         <el-form-item label="优先级">
@@ -521,14 +520,12 @@ onMounted(load)
     <el-dialog v-model="resolveVisible" title="提交解决方案" width="620px">
       <el-form :model="resolveForm" label-position="top">
         <el-form-item label="解决版本" required>
-          <el-select v-model="resolveForm.resolvedVersionId" filterable class="full-width" placeholder="请选择解决版本">
-            <el-option
-              v-for="version in versions.filter((item) => item.status !== 'ARCHIVED')"
-              :key="version.id"
-              :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
-              :value="version.id"
-            />
-          </el-select>
+          <VersionTreeSelect
+            v-model="resolveForm.resolvedVersionId"
+            :options="versions"
+            exclude-archived
+            placeholder="请选择或搜索解决版本"
+          />
         </el-form-item>
         <el-form-item label="解决方案或处理结果" required>
           <el-input v-model="resolveForm.resolution" type="textarea" :rows="7" maxlength="20000" show-word-limit />

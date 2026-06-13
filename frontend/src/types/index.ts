@@ -37,9 +37,18 @@ export interface VersionOption {
   versionNo: string
   name: string
   status: ProductVersionStatus
-  parentId?: number
+  parentId?: number | null
+  enabled: boolean
   depth: number
   pathLabel: string
+}
+
+export interface VersionView extends VersionOption {
+  description?: string
+  parentVersionNo?: string
+  releaseDate?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface VersionSummary {

@@ -48,17 +48,25 @@ public class VersionService {
 
     @Transactional(readOnly = true)
     public List<VersionOption> options() {
-        return versionRepository.findByEnabledTrueOrderByCreatedAtDesc().stream()
+        return versionRepository.findAllByOrderByVersionNoAsc().stream()
                 .map(version -> new VersionOption(
                         version.getId(),
                         version.getVersionNo(),
                         version.getName(),
                         version.getStatus(),
                         version.getParent() == null ? null : version.getParent().getId(),
+                        version.isEnabled(),
                         depth(version),
                         pathLabel(version)
                 ))
                 .sorted(Comparator.comparing(VersionOption::pathLabel))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<VersionView> tree() {
+        return versionRepository.findAllByOrderByVersionNoAsc().stream()
+                .map(this::toView)
                 .toList();
     }
 

@@ -12,6 +12,7 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import { http, errorMessage } from '@/api/http'
 import type { TicketDetail, TicketPriority, VersionOption } from '@/types'
 import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
+import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -109,20 +110,12 @@ onMounted(loadVersions)
           </el-select>
         </el-form-item>
         <el-form-item label="问题所在版本" prop="affectedVersionId">
-          <el-select
+          <VersionTreeSelect
             v-model="form.affectedVersionId"
+            :options="versions"
             size="large"
-            filterable
-            placeholder="请选择版本"
-            class="full-width"
-          >
-            <el-option
-              v-for="version in versions"
-              :key="version.id"
-              :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
-              :value="version.id"
-            />
-          </el-select>
+            placeholder="请选择或搜索问题所在版本"
+          />
         </el-form-item>
       </div>
       <el-form-item label="优先级" prop="priority">

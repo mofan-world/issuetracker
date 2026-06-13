@@ -547,6 +547,31 @@ h1, h2, p {
   width: 100%;
 }
 
+.version-tree-node {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-tree-node strong {
+  color: var(--primary);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.version-tree-node span {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-tree-node small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .role-tag {
   margin: 2px 6px 2px 0;
 }

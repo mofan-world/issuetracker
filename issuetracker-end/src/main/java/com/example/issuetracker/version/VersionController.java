@@ -33,6 +33,12 @@ public class VersionController {
         return versionService.options();
     }
 
+    @GetMapping("/tree")
+    @PreAuthorize("hasAuthority('version:manage')")
+    public List<VersionView> tree() {
+        return versionService.tree();
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('version:manage')")
     public PageResult<VersionView> list(
@@ -63,4 +69,3 @@ public class VersionController {
         versionService.delete(id);
     }
 }
-

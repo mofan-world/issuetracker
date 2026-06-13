@@ -1,26 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { errorMessage, http } from '@/api/http'
-import type { PageResult, ProductVersionStatus, VersionOption } from '@/types'
-
-interface VersionView {
-  id: number
-  versionNo: string
-  name: string
-  description?: string
-  status: ProductVersionStatus
-  releaseDate?: string
-  enabled: boolean
-  parentId?: number
-  parentVersionNo?: string
-  depth: number
-  pathLabel: string
-  createdAt: string
-  updatedAt: string
-}
+import type { ProductVersionStatus, VersionOption, VersionView } from '@/types'
+import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
+import { buildVersionTree, filterVersionTree, flattenVersionTree } from '@/utils/versionTree'
 
 const statusLabels: Record<ProductVersionStatus, string> = {
   PLANNED: '计划中',
@@ -33,8 +19,8 @@ const loading = ref(false)
 const saving = ref(false)
 const versions = ref<VersionView[]>([])
 const parentOptions = ref<VersionOption[]>([])
-const total = ref(0)
-const query = reactive({ keyword: '', page: 1, size: 20 })
+const query = reactive({ keyword: '' })
+const expandedRowKeys = ref<number[]>([])
 const dialogVisible = ref(false)
 const editingId = ref<number>()
 const formRef = ref<FormInstance>()
@@ -55,6 +41,23 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入版本名称', trigger: 'blur' }],
   status: [{ required: true, message: '请选择版本状态', trigger: 'change' }],
 }
+const versionTree = computed(() => {
+  const tree = buildVersionTree(versions.value)
+  const keyword = query.keyword.trim().toLowerCase()
+  if (!keyword) return tree
+  return filterVersionTree(
+    tree,
+    (version) =>
+      `${version.versionNo} ${version.name} ${version.pathLabel}`
+        .toLowerCase()
+        .includes(keyword),
+  )
+})
+const parentDisabledIds = computed(() =>
+  parentOptions.value
+    .filter((option) => !canSelectAsParent(option))
+    .map((option) => option.id),
+)
 
 function statusLabel(status: ProductVersionStatus) {
   return statusLabels[status]
@@ -77,14 +80,12 @@ async function load() {
   loading.value = true
   try {
     const [{ data }, { data: options }] = await Promise.all([
-      http.get<PageResult<VersionView>>('/api/versions', {
-        params: { keyword: query.keyword || undefined, page: query.page - 1, size: query.size },
-      }),
+      http.get<VersionView[]>('/api/versions/tree'),
       http.get<VersionOption[]>('/api/versions/options'),
     ])
-    versions.value = data.content
-    total.value = data.totalElements
+    versions.value = data
     parentOptions.value = options
+    applySearchExpansion()
   } catch (error) {
     ElMessage.error(errorMessage(error))
   } finally {
@@ -165,8 +166,28 @@ async function remove(version: VersionView) {
 }
 
 function search() {
-  query.page = 1
-  load()
+  applySearchExpansion()
+}
+
+function applySearchExpansion() {
+  expandedRowKeys.value = query.keyword.trim()
+    ? flattenVersionTree(versionTree.value).map((item) => item.id)
+    : []
+}
+
+function expandAll() {
+  expandedRowKeys.value = flattenVersionTree(versionTree.value).map((item) => item.id)
+}
+
+function collapseAll() {
+  expandedRowKeys.value = []
+}
+
+function handleExpandChange(version: VersionView, expanded: boolean) {
+  const keys = new Set(expandedRowKeys.value)
+  if (expanded) keys.add(version.id)
+  else keys.delete(version.id)
+  expandedRowKeys.value = [...keys]
 }
 
 onMounted(load)
@@ -189,20 +210,26 @@ onMounted(load)
         clearable
         placeholder="搜索版本号或版本名称"
         @keyup.enter="search"
+        @clear="search"
       />
       <el-button @click="search">查询</el-button>
+      <el-button @click="expandAll">展开全部</el-button>
+      <el-button @click="collapseAll">收起全部</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="versions">
-      <el-table-column prop="versionNo" label="版本号" width="150">
+    <el-table
+      v-loading="loading"
+      :data="versionTree"
+      row-key="id"
+      :tree-props="{ children: 'children' }"
+      :expand-row-keys="expandedRowKeys"
+      @expand-change="handleExpandChange"
+    >
+      <el-table-column prop="versionNo" label="版本号" min-width="210">
         <template #default="{ row }"><span class="ticket-no">{{ row.versionNo }}</span></template>
       </el-table-column>
       <el-table-column prop="name" label="版本名称" min-width="180" />
-      <el-table-column label="层级路径" min-width="220">
-        <template #default="{ row }">
-          <span :style="{ paddingLeft: `${(row.depth - 1) * 14}px` }">{{ row.pathLabel }}</span>
-        </template>
-      </el-table-column>
+      <el-table-column prop="pathLabel" label="完整路径" min-width="220" show-overflow-tooltip />
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag :type="row.status === 'RELEASED' ? 'success' : row.status === 'ARCHIVED' ? 'info' : 'primary'">
@@ -229,16 +256,6 @@ onMounted(load)
       </el-table-column>
     </el-table>
 
-    <div class="pagination">
-      <el-pagination
-        v-model:current-page="query.page"
-        v-model:page-size="query.size"
-        :total="total"
-        layout="total, prev, pager, next"
-        @change="load"
-      />
-    </div>
-
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑版本' : '新增版本'"
@@ -255,14 +272,14 @@ onMounted(load)
           </el-form-item>
         </div>
         <el-form-item label="父版本">
-          <el-select v-model="form.parentId" clearable filterable class="full-width" placeholder="无父版本（一级）">
-            <el-option
-              v-for="option in parentOptions.filter(canSelectAsParent)"
-              :key="option.id"
-              :label="`${'— '.repeat(option.depth - 1)}${option.pathLabel}`"
-              :value="option.id"
-            />
-          </el-select>
+          <VersionTreeSelect
+            v-model="form.parentId"
+            :options="parentOptions"
+            :disabled-ids="parentDisabledIds"
+            :respect-enabled="false"
+            clearable
+            placeholder="无父版本（一级），可输入关键字搜索"
+          />
           <div class="form-tip">版本最多支持 5 层，不能选择自身或自己的子版本。</div>
         </el-form-item>
         <div class="form-grid">

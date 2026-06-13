@@ -71,15 +71,26 @@ const rules: FormRules = {
 async function load() {
   loading.value = true
   try {
-    const [{ data: userPage }, { data: roleList }] = await Promise.all([
+    const [usersResult, rolesResult] = await Promise.allSettled([
       http.get<PageResult<User>>('/api/admin/users', {
         params: { keyword: query.keyword || undefined, page: query.page - 1, size: query.size },
       }),
       http.get<Role[]>('/api/admin/roles'),
     ])
-    users.value = userPage.content
-    total.value = userPage.totalElements
-    roles.value = roleList
+    if (usersResult.status === 'fulfilled') {
+      users.value = usersResult.value.data.content
+      total.value = usersResult.value.data.totalElements
+    } else {
+      users.value = []
+      total.value = 0
+      ElMessage.error(errorMessage(usersResult.reason))
+    }
+    if (rolesResult.status === 'fulfilled') {
+      roles.value = rolesResult.value.data
+    } else {
+      roles.value = []
+      ElMessage.error(`角色数据加载失败：${errorMessage(rolesResult.reason)}`)
+    }
   } catch (error) {
     ElMessage.error(errorMessage(error))
   } finally {
@@ -273,4 +284,3 @@ onMounted(load)
     </el-dialog>
   </section>
 </template>
-

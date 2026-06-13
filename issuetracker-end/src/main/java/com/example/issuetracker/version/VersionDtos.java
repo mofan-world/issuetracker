@@ -51,6 +51,7 @@ public final class VersionDtos {
             String name,
             ProductVersionStatus status,
             Long parentId,
+            boolean enabled,
             int depth,
             String pathLabel
     ) {
