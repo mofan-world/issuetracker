@@ -32,3 +32,28 @@ export const priorityTypes: Record<TicketPriority, 'info' | 'primary' | 'warning
   CRITICAL: 'danger',
 }
 
+export const transitionActionLabels: Record<string, string> = {
+  CREATE: '创建',
+  UPDATE: '更新',
+  ASSIGN: '分派',
+  START: '开始处理',
+  RESOLVE: '提交解决',
+  VERIFY_PASS: '验证通过',
+  VERIFY_REJECT: '验证驳回',
+  CLOSE: '关闭',
+}
+
+export const transitionActionTypes: Record<string, 'info' | 'primary' | 'warning' | 'success' | 'danger'> = {
+  CREATE: 'primary',
+  UPDATE: 'info',
+  ASSIGN: 'primary',
+  START: 'warning',
+  RESOLVE: 'success',
+  VERIFY_PASS: 'success',
+  VERIFY_REJECT: 'danger',
+  CLOSE: 'info',
+}
+
+export function transitionActionLabel(action: string) {
+  return transitionActionLabels[action] || '流程操作'
+}

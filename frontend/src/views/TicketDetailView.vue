@@ -13,7 +13,14 @@ import type {
   UserSummary,
   VersionOption,
 } from '@/types'
-import { priorityLabels, priorityTypes, statusLabels, statusTypes } from '@/utils/ticket'
+import {
+  priorityLabels,
+  priorityTypes,
+  statusLabels,
+  statusTypes,
+  transitionActionLabel,
+  transitionActionTypes,
+} from '@/utils/ticket'
 import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
 import SafeMarkdownContent from '@/components/SafeMarkdownContent.vue'
 import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
@@ -420,8 +427,17 @@ onMounted(load)
                 placement="top"
               >
                 <div class="timeline-card">
-                  <strong>{{ item.operator.displayName }} · {{ statusLabels[item.toStatus] }}</strong>
-                  <span>{{ item.action }}</span>
+                  <div class="timeline-heading">
+                    <el-tag
+                      :type="transitionActionTypes[item.action] || 'info'"
+                      effect="light"
+                      size="small"
+                    >
+                      {{ transitionActionLabel(item.action) }}
+                    </el-tag>
+                    <strong>{{ item.operator.displayName }}</strong>
+                    <span class="timeline-status">流转至 {{ statusLabels[item.toStatus] }}</span>
+                  </div>
                   <p v-if="item.comment">{{ item.comment }}</p>
                 </div>
               </el-timeline-item>

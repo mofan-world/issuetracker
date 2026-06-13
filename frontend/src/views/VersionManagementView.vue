@@ -20,7 +20,7 @@ const saving = ref(false)
 const versions = ref<VersionView[]>([])
 const parentOptions = ref<VersionOption[]>([])
 const query = reactive({ keyword: '' })
-const expandedRowKeys = ref<number[]>([])
+const expandedRowKeys = ref<string[]>([])
 const dialogVisible = ref(false)
 const editingId = ref<number>()
 const formRef = ref<FormInstance>()
@@ -171,12 +171,12 @@ function search() {
 
 function applySearchExpansion() {
   expandedRowKeys.value = query.keyword.trim()
-    ? flattenVersionTree(versionTree.value).map((item) => item.id)
+    ? flattenVersionTree(versionTree.value).map((item) => String(item.id))
     : []
 }
 
 function expandAll() {
-  expandedRowKeys.value = flattenVersionTree(versionTree.value).map((item) => item.id)
+  expandedRowKeys.value = flattenVersionTree(versionTree.value).map((item) => String(item.id))
 }
 
 function collapseAll() {
@@ -185,8 +185,9 @@ function collapseAll() {
 
 function handleExpandChange(version: VersionView, expanded: boolean) {
   const keys = new Set(expandedRowKeys.value)
-  if (expanded) keys.add(version.id)
-  else keys.delete(version.id)
+  const rowKey = String(version.id)
+  if (expanded) keys.add(rowKey)
+  else keys.delete(rowKey)
   expandedRowKeys.value = [...keys]
 }
 

@@ -426,13 +426,17 @@ h1, h2, p {
   padding-top: 8px;
 }
 
-.timeline-card strong,
-.timeline-card span {
-  display: block;
+.timeline-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.timeline-card span {
-  margin-top: 4px;
+.timeline-heading strong {
+  color: var(--ink);
+}
+
+.timeline-heading .timeline-status {
   color: var(--muted);
   font-size: 12px;
 }
