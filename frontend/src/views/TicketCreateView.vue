@@ -13,8 +13,18 @@ import { http, errorMessage } from '@/api/http'
 import type { TicketDetail, TicketPriority, VersionOption } from '@/types'
 import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
 import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
+import { useAppI18n } from '@/i18n'
 
 const router = useRouter()
+const { t } = useAppI18n()
+const categoryOptions = [
+  { key: 'FUNCTIONAL', value: '功能异常' },
+  { key: 'PERFORMANCE', value: '性能问题' },
+  { key: 'DATA', value: '数据问题' },
+  { key: 'SECURITY', value: '安全问题' },
+  { key: 'CONSULTING', value: '使用咨询' },
+  { key: 'OTHER', value: '其他' },
+]
 const formRef = ref<FormInstance>()
 const uploadRef = ref<UploadInstance>()
 const loading = ref(false)
@@ -90,51 +100,51 @@ onMounted(loadVersions)
     <div class="section-heading">
       <div>
         <span class="eyebrow">NEW ISSUE</span>
-        <h2>描述需要解决的问题</h2>
+        <h2>{{ t('ticket.create.heading') }}</h2>
       </div>
-      <p>请选择问题所在版本，并提供清晰的复现步骤、影响范围和相关附件。</p>
+      <p>{{ t('ticket.create.intro') }}</p>
     </div>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-      <el-form-item label="问题标题" prop="title">
-        <el-input v-model="form.title" size="large" maxlength="200" show-word-limit placeholder="用一句话概括问题" />
+      <el-form-item :label="t('ticket.create.title')" prop="title">
+        <el-input v-model="form.title" size="large" maxlength="200" show-word-limit :placeholder="t('ticket.create.titlePlaceholder')" />
       </el-form-item>
       <div class="form-grid">
-        <el-form-item label="问题分类" prop="category">
-          <el-select v-model="form.category" size="large" placeholder="请选择" class="full-width">
-            <el-option label="功能异常" value="功能异常" />
-            <el-option label="性能问题" value="性能问题" />
-            <el-option label="数据问题" value="数据问题" />
-            <el-option label="安全问题" value="安全问题" />
-            <el-option label="使用咨询" value="使用咨询" />
-            <el-option label="其他" value="其他" />
+        <el-form-item :label="t('ticket.create.category')" prop="category">
+          <el-select v-model="form.category" size="large" :placeholder="t('ticket.create.select')" class="full-width">
+            <el-option
+              v-for="category in categoryOptions"
+              :key="category.key"
+              :label="t(`ticket.categories.${category.key}`)"
+              :value="category.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="问题所在版本" prop="affectedVersionId">
+        <el-form-item :label="t('ticket.create.affectedVersion')" prop="affectedVersionId">
           <VersionTreeSelect
             v-model="form.affectedVersionId"
             :options="versions"
             size="large"
-            placeholder="请选择或搜索问题所在版本"
+            :placeholder="t('ticket.create.affectedVersionPlaceholder')"
           />
         </el-form-item>
       </div>
-      <el-form-item label="优先级" prop="priority">
+      <el-form-item :label="t('ticket.create.priority')" prop="priority">
         <el-radio-group v-model="form.priority" size="large">
-          <el-radio-button value="LOW">低</el-radio-button>
-          <el-radio-button value="MEDIUM">中</el-radio-button>
-          <el-radio-button value="HIGH">高</el-radio-button>
-          <el-radio-button value="CRITICAL">紧急</el-radio-button>
+          <el-radio-button value="LOW">{{ t('ticket.priority.LOW') }}</el-radio-button>
+          <el-radio-button value="MEDIUM">{{ t('ticket.priority.MEDIUM') }}</el-radio-button>
+          <el-radio-button value="HIGH">{{ t('ticket.priority.HIGH') }}</el-radio-button>
+          <el-radio-button value="CRITICAL">{{ t('ticket.priority.CRITICAL') }}</el-radio-button>
         </el-radio-group>
       </el-form-item>
-      <el-form-item label="详细描述" prop="description">
+      <el-form-item :label="t('ticket.create.description')" prop="description">
         <MarkdownImageEditor
           v-model="form.description"
           :rows="10"
           :maxlength="20000"
-          placeholder="建议包括：问题现象、复现步骤、影响范围、期望结果"
+          :placeholder="t('ticket.create.descriptionPlaceholder')"
         />
       </el-form-item>
-      <el-form-item label="附件">
+      <el-form-item :label="t('ticket.create.attachments')">
         <el-upload
           ref="uploadRef"
           v-model:file-list="files"
@@ -145,15 +155,15 @@ onMounted(loadVersions)
           accept=".doc,.docx,.xls,.xlsx,.pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip"
         >
           <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-          <div class="el-upload__text">拖拽文件到此处，或 <em>点击选择</em></div>
+          <div class="el-upload__text">{{ t('ticket.create.dragFiles') }} <em>{{ t('ticket.create.clickSelect') }}</em></div>
           <template #tip>
-            <div class="el-upload__tip">支持 Word、Excel、PDF、图片等类型，单个文件不超过 20MB。</div>
+            <div class="el-upload__tip">{{ t('ticket.create.attachmentTip') }}</div>
           </template>
         </el-upload>
       </el-form-item>
       <div class="form-actions">
-        <el-button size="large" @click="router.back()">取消</el-button>
-        <el-button type="primary" size="large" :loading="loading" @click="submit">提交问题单</el-button>
+        <el-button size="large" @click="router.back()">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" size="large" :loading="loading" @click="submit">{{ t('ticket.create.submit') }}</el-button>
       </div>
     </el-form>
   </section>

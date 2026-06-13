@@ -7,16 +7,12 @@ import { errorMessage, http } from '@/api/http'
 import type { ProductVersionStatus, VersionOption, VersionView } from '@/types'
 import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
 import { buildVersionTree, filterVersionTree, flattenVersionTree } from '@/utils/versionTree'
+import { useAppI18n } from '@/i18n'
 
-const statusLabels: Record<ProductVersionStatus, string> = {
-  PLANNED: '计划中',
-  ACTIVE: '开发中',
-  RELEASED: '已发布',
-  ARCHIVED: '已归档',
-}
-
+const { t } = useAppI18n()
 const loading = ref(false)
 const saving = ref(false)
+const statusOptions: ProductVersionStatus[] = ['PLANNED', 'ACTIVE', 'RELEASED', 'ARCHIVED']
 const versions = ref<VersionView[]>([])
 const parentOptions = ref<VersionOption[]>([])
 const query = reactive({ keyword: '' })
@@ -60,7 +56,7 @@ const parentDisabledIds = computed(() =>
 )
 
 function statusLabel(status: ProductVersionStatus) {
-  return statusLabels[status]
+  return t(`version.status.${status}`)
 }
 
 function canSelectAsParent(option: VersionOption) {
@@ -199,9 +195,9 @@ onMounted(load)
     <div class="section-heading compact">
       <div>
         <span class="eyebrow">RELEASE CONTROL</span>
-        <h2>产品版本</h2>
+        <h2>{{ t('version.title') }}</h2>
       </div>
-      <el-button type="primary" :icon="Plus" @click="createVersion">新增版本</el-button>
+      <el-button type="primary" :icon="Plus" @click="createVersion">{{ t('version.add') }}</el-button>
     </div>
 
     <div class="filter-bar">
@@ -209,13 +205,13 @@ onMounted(load)
         v-model="query.keyword"
         class="search-input"
         clearable
-        placeholder="搜索版本号或版本名称"
+        :placeholder="t('version.searchPlaceholder')"
         @keyup.enter="search"
         @clear="search"
       />
-      <el-button @click="search">查询</el-button>
-      <el-button @click="expandAll">展开全部</el-button>
-      <el-button @click="collapseAll">收起全部</el-button>
+      <el-button @click="search">{{ t('common.search') }}</el-button>
+      <el-button @click="expandAll">{{ t('version.expandAll') }}</el-button>
+      <el-button @click="collapseAll">{{ t('version.collapseAll') }}</el-button>
     </div>
 
     <el-table
@@ -226,83 +222,88 @@ onMounted(load)
       :expand-row-keys="expandedRowKeys"
       @expand-change="handleExpandChange"
     >
-      <el-table-column prop="versionNo" label="版本号" min-width="210">
+      <el-table-column prop="versionNo" :label="t('version.versionNo')" min-width="210">
         <template #default="{ row }"><span class="ticket-no">{{ row.versionNo }}</span></template>
       </el-table-column>
-      <el-table-column prop="name" label="版本名称" min-width="180" />
-      <el-table-column prop="pathLabel" label="完整路径" min-width="220" show-overflow-tooltip />
-      <el-table-column label="状态" width="110">
+      <el-table-column prop="name" :label="t('version.name')" min-width="180" />
+      <el-table-column prop="pathLabel" :label="t('version.path')" min-width="220" show-overflow-tooltip />
+      <el-table-column :label="t('version.statusLabel')" width="110">
         <template #default="{ row }">
           <el-tag :type="row.status === 'RELEASED' ? 'success' : row.status === 'ARCHIVED' ? 'info' : 'primary'">
             {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="发布日期" width="130">
+      <el-table-column :label="t('version.releaseDate')" width="130">
         <template #default="{ row }">{{ row.releaseDate || '-' }}</template>
       </el-table-column>
-      <el-table-column label="可选" width="90">
+      <el-table-column :label="t('version.selectable')" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">{{ row.enabled ? '启用' : '停用' }}</el-tag>
+          <el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">{{ row.enabled ? t('common.enabled') : t('common.disabled') }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="175">
+      <el-table-column :label="t('version.updatedAt')" width="175">
         <template #default="{ row }">{{ dayjs(row.updatedAt).format('YYYY-MM-DD HH:mm') }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="145" fixed="right">
+      <el-table-column :label="t('common.operation')" width="145" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="editVersion(row)">编辑</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" @click="editVersion(row)">{{ t('common.edit') }}</el-button>
+          <el-button link type="danger" @click="remove(row)">{{ t('common.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑版本' : '新增版本'"
+      :title="editingId ? t('version.edit') : t('version.add')"
       width="620px"
       @closed="resetForm"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <div class="form-grid">
-          <el-form-item label="版本号" prop="versionNo">
+          <el-form-item :label="t('version.versionNo')" prop="versionNo">
             <el-input v-model="form.versionNo" placeholder="例如 2.3.0" />
           </el-form-item>
-          <el-form-item label="版本名称" prop="name">
+          <el-form-item :label="t('version.name')" prop="name">
             <el-input v-model="form.name" placeholder="例如 夏季功能版本" />
           </el-form-item>
         </div>
-        <el-form-item label="父版本">
+        <el-form-item :label="t('version.parent')">
           <VersionTreeSelect
             v-model="form.parentId"
             :options="parentOptions"
             :disabled-ids="parentDisabledIds"
             :respect-enabled="false"
             clearable
-            placeholder="无父版本（一级），可输入关键字搜索"
+            :placeholder="t('version.noParentPlaceholder')"
           />
-          <div class="form-tip">版本最多支持 5 层，不能选择自身或自己的子版本。</div>
+          <div class="form-tip">{{ t('version.parentTip') }}</div>
         </el-form-item>
         <div class="form-grid">
-          <el-form-item label="状态" prop="status">
+          <el-form-item :label="t('version.statusLabel')" prop="status">
             <el-select v-model="form.status" class="full-width">
-              <el-option v-for="(label, value) in statusLabels" :key="value" :label="label" :value="value" />
+              <el-option
+                v-for="value in statusOptions"
+                :key="value"
+                :label="statusLabel(value)"
+                :value="value"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item label="发布日期">
+          <el-form-item :label="t('version.releaseDate')">
             <el-date-picker v-model="form.releaseDate" type="date" value-format="YYYY-MM-DD" class="full-width" />
           </el-form-item>
         </div>
-        <el-form-item label="版本说明">
+        <el-form-item :label="t('version.description')">
           <el-input v-model="form.description" type="textarea" :rows="4" maxlength="5000" show-word-limit />
         </el-form-item>
-        <el-form-item label="允许问题单选择">
+        <el-form-item :label="t('version.allowSelection')">
           <el-switch v-model="form.enabled" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="save">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </section>

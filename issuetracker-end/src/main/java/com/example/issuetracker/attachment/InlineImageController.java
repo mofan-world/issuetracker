@@ -25,7 +25,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class InlineImageController {
 
-    private static final long MAX_INLINE_IMAGE_SIZE = 5L * 1024 * 1024;
+    private static final long MAX_INLINE_IMAGE_SIZE = 20L * 1024 * 1024;
     private static final Set<String> IMAGE_EXTENSIONS =
             Set.of("png", "jpg", "jpeg", "gif", "webp");
 
@@ -66,7 +66,7 @@ public class InlineImageController {
             throw BusinessException.badRequest("EMPTY_IMAGE", "不能上传空图片");
         }
         if (file.getSize() > MAX_INLINE_IMAGE_SIZE) {
-            throw BusinessException.badRequest("IMAGE_TOO_LARGE", "粘贴图片不能超过 5MB");
+            throw BusinessException.badRequest("IMAGE_TOO_LARGE", "粘贴图片不能超过 20MB");
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
         int dot = filename.lastIndexOf('.');

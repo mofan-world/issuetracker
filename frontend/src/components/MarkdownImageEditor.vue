@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { ElMessage, type InputInstance } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { errorMessage, http } from '@/api/http'
+import { useAppI18n } from '@/i18n'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -19,14 +20,15 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
+const { t } = useAppI18n()
 const inputRef = ref<InputInstance>()
 const fileInput = ref<HTMLInputElement>()
 const uploading = ref(false)
 
 async function uploadImage(file: File) {
   if (!file.type.startsWith('image/')) return
-  if (file.size > 5 * 1024 * 1024) {
-    ElMessage.error('图片不能超过 5MB')
+  if (file.size > 20 * 1024 * 1024) {
+    ElMessage.error(t('editor.imageTooLarge'))
     return
   }
   uploading.value = true
@@ -80,9 +82,9 @@ function escapeAlt(value: string) {
   <div class="markdown-image-editor">
     <div class="editor-toolbar">
       <el-button :icon="Picture" :loading="uploading" @click="fileInput?.click()">
-        {{ uploading ? '图片上传中' : '插入图片' }}
+        {{ uploading ? t('editor.uploading') : t('editor.insertImage') }}
       </el-button>
-      <span>也可以直接粘贴剪贴板中的图片</span>
+      <span>{{ t('editor.pasteHint') }}</span>
       <input
         ref="fileInput"
         class="hidden-file-input"
@@ -104,4 +106,3 @@ function escapeAlt(value: string) {
     />
   </div>
 </template>
-

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Tickets, Plus, User, SwitchButton, Collection } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
@@ -10,12 +10,49 @@ const router = useRouter()
 const auth = useAuthStore()
 const { locale, t } = useAppI18n()
 
+interface WorkspaceTab {
+  path: string
+  titleKey: string
+  closable: boolean
+}
+
+const tabs = ref<WorkspaceTab[]>([])
+const activeTab = ref(route.fullPath)
+
 const activeMenu = computed(() => {
   if (route.path.startsWith('/admin/versions')) return '/admin/versions'
   if (route.path.startsWith('/admin')) return '/admin/users'
   if (route.path === '/tickets/new') return '/tickets/new'
   return '/tickets'
 })
+
+watch(
+  () => route.fullPath,
+  (path) => {
+    activeTab.value = path
+    if (tabs.value.some((tab) => tab.path === path)) return
+    tabs.value.push({
+      path,
+      titleKey: route.meta.titleKey || 'app.workspace',
+      closable: path !== '/tickets',
+    })
+  },
+  { immediate: true },
+)
+
+function changeTab(path: string | number) {
+  if (String(path) !== route.fullPath) router.push(String(path))
+}
+
+function removeTab(path: string | number) {
+  const targetPath = String(path)
+  const index = tabs.value.findIndex((tab) => tab.path === targetPath)
+  if (index < 0 || !tabs.value[index].closable) return
+  tabs.value.splice(index, 1)
+  if (targetPath !== route.fullPath) return
+  const nextTab = tabs.value[Math.min(index, tabs.value.length - 1)]
+  router.push(nextTab?.path || '/tickets')
+}
 
 async function logout() {
   await auth.logout()
@@ -71,8 +108,27 @@ async function logout() {
         </div>
         <span class="topbar-date">{{ new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN') }}</span>
       </header>
+      <el-tabs
+        v-model="activeTab"
+        class="workspace-tabs"
+        type="card"
+        @tab-change="changeTab"
+        @tab-remove="removeTab"
+      >
+        <el-tab-pane
+          v-for="tab in tabs"
+          :key="tab.path"
+          :name="tab.path"
+          :label="t(tab.titleKey)"
+          :closable="tab.closable"
+        />
+      </el-tabs>
       <div class="page-body">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" :key="route.fullPath" />
+          </keep-alive>
+        </router-view>
       </div>
     </main>
   </div>

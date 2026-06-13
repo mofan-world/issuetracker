@@ -6,6 +6,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { http, errorMessage } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import type { PageResult } from '@/types'
+import { useAppI18n } from '@/i18n'
 
 interface Role {
   id: number
@@ -25,6 +26,7 @@ interface User {
 }
 
 const auth = useAuthStore()
+const { t } = useAppI18n()
 const loading = ref(false)
 const saving = ref(false)
 const users = ref<User[]>([])
@@ -42,7 +44,7 @@ const form = reactive({
   enabled: true,
   roleIds: [] as number[],
 })
-const dialogTitle = computed(() => editingId.value ? '编辑用户' : '新增用户')
+const dialogTitle = computed(() => editingId.value ? t('user.edit') : t('user.add'))
 const rules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -187,9 +189,9 @@ onMounted(load)
     <div class="section-heading compact">
       <div>
         <span class="eyebrow">ACCESS CONTROL</span>
-        <h2>用户与角色</h2>
+        <h2>{{ t('user.title') }}</h2>
       </div>
-      <el-button type="primary" :icon="Plus" @click="createUser">新增用户</el-button>
+      <el-button type="primary" :icon="Plus" @click="createUser">{{ t('user.add') }}</el-button>
     </div>
 
     <div class="filter-bar">
@@ -197,25 +199,25 @@ onMounted(load)
         v-model="query.keyword"
         class="search-input"
         clearable
-        placeholder="搜索用户名、显示名称或邮箱"
+        :placeholder="t('user.searchPlaceholder')"
         @keyup.enter="search"
       />
-      <el-button @click="search">查询</el-button>
+      <el-button @click="search">{{ t('common.search') }}</el-button>
     </div>
 
     <el-table v-loading="loading" :data="users">
-      <el-table-column prop="username" label="用户名" width="145" />
-      <el-table-column prop="displayName" label="显示名称" width="145" />
-      <el-table-column prop="email" label="邮箱" min-width="220" />
-      <el-table-column label="角色" min-width="250">
+      <el-table-column prop="username" :label="t('user.username')" width="145" />
+      <el-table-column prop="displayName" :label="t('user.displayName')" width="145" />
+      <el-table-column prop="email" :label="t('user.email')" min-width="220" />
+      <el-table-column :label="t('user.roles')" min-width="250">
         <template #default="{ row }">
           <el-tag v-for="role in row.roles" :key="role" class="role-tag" effect="plain">{{ role }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="175">
+      <el-table-column :label="t('user.createdAt')" width="175">
         <template #default="{ row }">{{ dayjs(row.createdAt).format('YYYY-MM-DD HH:mm') }}</template>
       </el-table-column>
-      <el-table-column label="启用" width="80">
+      <el-table-column :label="t('user.enabled')" width="80">
         <template #default="{ row }">
           <el-switch
             v-model="row.enabled"
@@ -224,10 +226,10 @@ onMounted(load)
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="145" fixed="right">
+      <el-table-column :label="t('common.operation')" width="145" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="editUser(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="row.id === auth.user?.id" @click="deleteUser(row)">删除</el-button>
+          <el-button link type="primary" @click="editUser(row)">{{ t('common.edit') }}</el-button>
+          <el-button link type="danger" :disabled="row.id === auth.user?.id" @click="deleteUser(row)">{{ t('common.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -250,22 +252,22 @@ onMounted(load)
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <div class="form-grid">
-          <el-form-item label="用户名" prop="username">
+          <el-form-item :label="t('user.username')" prop="username">
             <el-input v-model="form.username" autocomplete="off" />
           </el-form-item>
-          <el-form-item label="显示名称" prop="displayName">
+          <el-form-item :label="t('user.displayName')" prop="displayName">
             <el-input v-model="form.displayName" />
           </el-form-item>
         </div>
         <div class="form-grid">
-          <el-form-item label="邮箱" prop="email">
+          <el-form-item :label="t('user.email')" prop="email">
             <el-input v-model="form.email" />
           </el-form-item>
-          <el-form-item :label="editingId ? '重置密码（留空不修改）' : '登录密码'" prop="password">
+          <el-form-item :label="editingId ? t('user.resetPassword') : t('user.password')" prop="password">
             <el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
           </el-form-item>
         </div>
-        <el-form-item label="角色" prop="roleIds">
+        <el-form-item :label="t('user.roles')" prop="roleIds">
           <el-checkbox-group v-model="form.roleIds" class="role-options">
             <el-checkbox v-for="role in roles" :key="role.id" :value="role.id">
               <strong>{{ role.name }}</strong>
@@ -273,13 +275,13 @@ onMounted(load)
             </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
-        <el-form-item label="账号状态">
-          <el-switch v-model="form.enabled" active-text="启用" inactive-text="禁用" />
+        <el-form-item :label="t('user.accountStatus')">
+          <el-switch v-model="form.enabled" :active-text="t('common.enabled')" :inactive-text="t('common.disabled')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveUser">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="saveUser">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </section>

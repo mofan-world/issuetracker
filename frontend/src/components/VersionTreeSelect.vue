@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { ProductVersionStatus, VersionOption } from '@/types'
 import { buildVersionTree, type VersionTreeNode } from '@/utils/versionTree'
+import { useAppI18n } from '@/i18n'
 
 type SelectNode = VersionTreeNode<VersionOption> & {
   label: string
@@ -33,12 +34,7 @@ const emit = defineEmits<{
   change: [value: number | undefined]
 }>()
 
-const statusLabels: Record<ProductVersionStatus, string> = {
-  PLANNED: '计划中',
-  ACTIVE: '开发中',
-  RELEASED: '已发布',
-  ARCHIVED: '已归档',
-}
+const { t } = useAppI18n()
 
 const treeData = computed<SelectNode[]>(() => {
   const disabledIds = new Set(props.disabledIds)
@@ -106,7 +102,7 @@ function updateValue(value: unknown) {
       <span class="version-tree-node">
         <strong>{{ data.versionNo }}</strong>
         <span>{{ data.name }}</span>
-        <small>{{ statusLabels[data.status as ProductVersionStatus] }}</small>
+        <small>{{ t(`version.status.${data.status as ProductVersionStatus}`) }}</small>
       </span>
     </template>
   </el-tree-select>

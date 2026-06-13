@@ -59,6 +59,14 @@ const defaultColumns: ColumnKey[] = [
 ]
 const statusOptions: TicketStatus[] = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED', 'CLOSED']
 const priorityOptions: TicketPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+const categoryKeys: Record<string, string> = {
+  功能异常: 'FUNCTIONAL',
+  性能问题: 'PERFORMANCE',
+  数据问题: 'DATA',
+  安全问题: 'SECURITY',
+  使用咨询: 'CONSULTING',
+  其他: 'OTHER',
+}
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -111,6 +119,11 @@ function isColumnVisible(key: ColumnKey) {
 
 function formatDate(value?: string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm') : t('ticket.empty')
+}
+
+function categoryLabel(category: string) {
+  const key = categoryKeys[category]
+  return key ? t(`ticket.categories.${key}`) : category
 }
 
 async function load() {
@@ -270,7 +283,9 @@ onMounted(() => {
           min-width="240"
           show-overflow-tooltip
         />
-        <el-table-column v-if="isColumnVisible('category')" prop="category" :label="t('ticket.column.category')" width="120" />
+        <el-table-column v-if="isColumnVisible('category')" prop="category" :label="t('ticket.column.category')" width="120">
+          <template #default="{ row }">{{ categoryLabel(row.category) }}</template>
+        </el-table-column>
         <el-table-column v-if="isColumnVisible('priority')" :label="t('ticket.column.priority')" width="100">
           <template #default="{ row }">
             <el-tag :type="priorityTypes[row.priority as TicketPriority]" effect="light">
