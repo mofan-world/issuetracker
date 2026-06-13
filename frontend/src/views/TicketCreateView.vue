@@ -11,6 +11,7 @@ import {
 import { UploadFilled } from '@element-plus/icons-vue'
 import { http, errorMessage } from '@/api/http'
 import type { TicketDetail, TicketPriority, VersionOption } from '@/types'
+import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -118,7 +119,7 @@ onMounted(loadVersions)
             <el-option
               v-for="version in versions"
               :key="version.id"
-              :label="`${version.versionNo} · ${version.name}`"
+              :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
               :value="version.id"
             />
           </el-select>
@@ -133,12 +134,10 @@ onMounted(loadVersions)
         </el-radio-group>
       </el-form-item>
       <el-form-item label="详细描述" prop="description">
-        <el-input
+        <MarkdownImageEditor
           v-model="form.description"
-          type="textarea"
           :rows="10"
-          maxlength="20000"
-          show-word-limit
+          :maxlength="20000"
           placeholder="建议包括：问题现象、复现步骤、影响范围、期望结果"
         />
       </el-form-item>
@@ -166,4 +165,3 @@ onMounted(loadVersions)
     </el-form>
   </section>
 </template>
-

@@ -8,6 +8,7 @@ export type TicketStatus =
 
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ProductVersionStatus = 'PLANNED' | 'ACTIVE' | 'RELEASED' | 'ARCHIVED'
+export type TicketScope = 'ALL' | 'RELATED' | 'MY_CREATED' | 'CREATED_BY'
 
 export interface UserProfile {
   id: number
@@ -36,6 +37,9 @@ export interface VersionOption {
   versionNo: string
   name: string
   status: ProductVersionStatus
+  parentId?: number
+  depth: number
+  pathLabel: string
 }
 
 export interface VersionSummary {
@@ -67,6 +71,7 @@ export interface TicketSummary {
   version: number
   createdAt: string
   updatedAt: string
+  resolvedAt?: string
 }
 
 export interface TicketTransition {

@@ -3,6 +3,7 @@ package com.example.issuetracker.ticket;
 import com.example.issuetracker.attachment.TicketAttachmentService;
 import com.example.issuetracker.domain.TicketPriority;
 import com.example.issuetracker.domain.TicketStatus;
+import com.example.issuetracker.domain.TicketScope;
 import com.example.issuetracker.ticket.TicketDtos.ActionRequest;
 import com.example.issuetracker.ticket.TicketDtos.AssignRequest;
 import com.example.issuetracker.ticket.TicketDtos.CreateTicketRequest;
@@ -68,10 +69,12 @@ public class TicketController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false) TicketScope scope,
+            @RequestParam(required = false) Long creatorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ticketService.list(keyword, status, priority, page, size);
+        return ticketService.list(keyword, status, priority, scope, creatorId, page, size);
     }
 
     @GetMapping("/{id}")

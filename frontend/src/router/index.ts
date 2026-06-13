@@ -5,7 +5,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
     permission?: string
-    title?: string
+    titleKey?: string
   }
 }
 
@@ -13,12 +13,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     component: () => import('@/views/LoginView.vue'),
-    meta: { public: true, title: '登录' },
+    meta: { public: true, titleKey: 'nav.login' },
   },
   {
     path: '/register',
     component: () => import('@/views/RegisterView.vue'),
-    meta: { public: true, title: '注册' },
+    meta: { public: true, titleKey: 'nav.register' },
   },
   {
     path: '/',
@@ -28,27 +28,27 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'tickets',
         component: () => import('@/views/TicketListView.vue'),
-        meta: { title: '问题单列表', permission: 'ticket:read:own' },
+        meta: { titleKey: 'nav.tickets', permission: 'ticket:read:own' },
       },
       {
         path: 'tickets/new',
         component: () => import('@/views/TicketCreateView.vue'),
-        meta: { title: '创建问题单', permission: 'ticket:create' },
+        meta: { titleKey: 'nav.createTicket', permission: 'ticket:create' },
       },
       {
         path: 'tickets/:id',
         component: () => import('@/views/TicketDetailView.vue'),
-        meta: { title: '问题单详情', permission: 'ticket:read:own' },
+        meta: { titleKey: 'nav.ticketDetail', permission: 'ticket:read:own' },
       },
       {
         path: 'admin/users',
         component: () => import('@/views/UserManagementView.vue'),
-        meta: { title: '用户与权限', permission: 'user:manage' },
+        meta: { titleKey: 'nav.users', permission: 'user:manage' },
       },
       {
         path: 'admin/versions',
         component: () => import('@/views/VersionManagementView.vue'),
-        meta: { title: '版本管理', permission: 'version:manage' },
+        meta: { titleKey: 'nav.versions', permission: 'version:manage' },
       },
     ],
   },
@@ -61,7 +61,6 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  document.title = `${to.meta.title || '工作台'} - 问题单跟踪系统`
   const auth = useAuthStore()
   if (to.meta.public) {
     return auth.authenticated && (to.path === '/login' || to.path === '/register') ? '/' : true

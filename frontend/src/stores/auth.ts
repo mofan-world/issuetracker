@@ -3,11 +3,41 @@ import { defineStore } from 'pinia'
 import { clearSession, http, storeTokens } from '@/api/http'
 import type { TokenResponse, UserProfile } from '@/types'
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function deserializeProfile(raw: string): UserProfile | null {
+  const value: unknown = JSON.parse(raw)
+  if (!value || typeof value !== 'object') return null
+  const profile = value as Record<string, unknown>
+  if (
+    typeof profile.id !== 'number'
+    || typeof profile.username !== 'string'
+    || typeof profile.email !== 'string'
+    || typeof profile.displayName !== 'string'
+    || !isStringArray(profile.roles)
+    || !isStringArray(profile.permissions)
+  ) {
+    return null
+  }
+  return {
+    id: profile.id,
+    username: profile.username,
+    email: profile.email,
+    displayName: profile.displayName,
+    roles: profile.roles,
+    permissions: profile.permissions,
+  }
+}
+
 function initialProfile(): UserProfile | null {
   const raw = localStorage.getItem('userProfile')
   if (!raw) return null
   try {
-    return JSON.parse(raw) as UserProfile
+    const profile = deserializeProfile(raw)
+    if (!profile) clearSession()
+    return profile
   } catch {
     clearSession()
     return null

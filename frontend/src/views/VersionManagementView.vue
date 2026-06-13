@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { errorMessage, http } from '@/api/http'
-import type { PageResult, ProductVersionStatus } from '@/types'
+import type { PageResult, ProductVersionStatus, VersionOption } from '@/types'
 
 interface VersionView {
   id: number
@@ -14,6 +14,10 @@ interface VersionView {
   status: ProductVersionStatus
   releaseDate?: string
   enabled: boolean
+  parentId?: number
+  parentVersionNo?: string
+  depth: number
+  pathLabel: string
   createdAt: string
   updatedAt: string
 }
@@ -28,6 +32,7 @@ const statusLabels: Record<ProductVersionStatus, string> = {
 const loading = ref(false)
 const saving = ref(false)
 const versions = ref<VersionView[]>([])
+const parentOptions = ref<VersionOption[]>([])
 const total = ref(0)
 const query = reactive({ keyword: '', page: 1, size: 20 })
 const dialogVisible = ref(false)
@@ -40,6 +45,7 @@ const form = reactive({
   status: 'PLANNED' as ProductVersionStatus,
   releaseDate: '',
   enabled: true,
+  parentId: undefined as number | undefined,
 })
 const rules: FormRules = {
   versionNo: [
@@ -54,14 +60,31 @@ function statusLabel(status: ProductVersionStatus) {
   return statusLabels[status]
 }
 
+function canSelectAsParent(option: VersionOption) {
+  if (option.depth >= 5 || option.id === editingId.value) return false
+  if (!editingId.value) return true
+  let parentId = option.parentId
+  const visited = new Set<number>()
+  while (parentId && !visited.has(parentId)) {
+    if (parentId === editingId.value) return false
+    visited.add(parentId)
+    parentId = parentOptions.value.find((item) => item.id === parentId)?.parentId
+  }
+  return true
+}
+
 async function load() {
   loading.value = true
   try {
-    const { data } = await http.get<PageResult<VersionView>>('/api/versions', {
-      params: { keyword: query.keyword || undefined, page: query.page - 1, size: query.size },
-    })
+    const [{ data }, { data: options }] = await Promise.all([
+      http.get<PageResult<VersionView>>('/api/versions', {
+        params: { keyword: query.keyword || undefined, page: query.page - 1, size: query.size },
+      }),
+      http.get<VersionOption[]>('/api/versions/options'),
+    ])
     versions.value = data.content
     total.value = data.totalElements
+    parentOptions.value = options
   } catch (error) {
     ElMessage.error(errorMessage(error))
   } finally {
@@ -78,6 +101,7 @@ function resetForm() {
     status: 'PLANNED',
     releaseDate: '',
     enabled: true,
+    parentId: undefined,
   })
   formRef.value?.clearValidate()
 }
@@ -96,6 +120,7 @@ function editVersion(version: VersionView) {
     status: version.status,
     releaseDate: version.releaseDate || '',
     enabled: version.enabled,
+    parentId: version.parentId,
   })
   dialogVisible.value = true
 }
@@ -104,7 +129,11 @@ async function save() {
   await formRef.value?.validate()
   saving.value = true
   try {
-    const payload = { ...form, releaseDate: form.releaseDate || null }
+    const payload = {
+      ...form,
+      releaseDate: form.releaseDate || null,
+      parentId: form.parentId || null,
+    }
     if (editingId.value) {
       await http.put(`/api/versions/${editingId.value}`, payload)
     } else {
@@ -169,6 +198,11 @@ onMounted(load)
         <template #default="{ row }"><span class="ticket-no">{{ row.versionNo }}</span></template>
       </el-table-column>
       <el-table-column prop="name" label="版本名称" min-width="180" />
+      <el-table-column label="层级路径" min-width="220">
+        <template #default="{ row }">
+          <span :style="{ paddingLeft: `${(row.depth - 1) * 14}px` }">{{ row.pathLabel }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag :type="row.status === 'RELEASED' ? 'success' : row.status === 'ARCHIVED' ? 'info' : 'primary'">
@@ -220,6 +254,17 @@ onMounted(load)
             <el-input v-model="form.name" placeholder="例如 夏季功能版本" />
           </el-form-item>
         </div>
+        <el-form-item label="父版本">
+          <el-select v-model="form.parentId" clearable filterable class="full-width" placeholder="无父版本（一级）">
+            <el-option
+              v-for="option in parentOptions.filter(canSelectAsParent)"
+              :key="option.id"
+              :label="`${'— '.repeat(option.depth - 1)}${option.pathLabel}`"
+              :value="option.id"
+            />
+          </el-select>
+          <div class="form-tip">版本最多支持 5 层，不能选择自身或自己的子版本。</div>
+        </el-form-item>
         <div class="form-grid">
           <el-form-item label="状态" prop="status">
             <el-select v-model="form.status" class="full-width">

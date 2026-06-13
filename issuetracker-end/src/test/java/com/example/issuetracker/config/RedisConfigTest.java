@@ -1,6 +1,7 @@
 package com.example.issuetracker.config;
 
 import com.example.issuetracker.admin.AdminDtos.RoleView;
+import com.example.issuetracker.auth.AuthDtos.UserProfile;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 
@@ -23,5 +24,24 @@ class RedisConfigTest {
         assertThat((List<?>) restored)
                 .singleElement()
                 .isInstanceOf(RoleView.class);
+    }
+
+    @Test
+    void cachedUserProfileRetainsItsRuntimeType() {
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer();
+        UserProfile profile = new UserProfile(
+                7L,
+                "developer",
+                "developer@example.com",
+                "Developer",
+                List.of("DEVELOPER"),
+                List.of("ticket:process")
+        );
+
+        Object restored = serializer.deserialize(serializer.serialize(profile));
+
+        assertThat(restored)
+                .isInstanceOf(UserProfile.class)
+                .isEqualTo(profile);
     }
 }

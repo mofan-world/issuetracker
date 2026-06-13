@@ -14,6 +14,8 @@ import type {
   VersionOption,
 } from '@/types'
 import { priorityLabels, priorityTypes, statusLabels, statusTypes } from '@/utils/ticket'
+import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
+import SafeMarkdownContent from '@/components/SafeMarkdownContent.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -80,7 +82,12 @@ async function load() {
     if (!options.some((item) => item.id === detail.affectedVersion.id)) {
       versions.value = [
         ...options,
-        { ...detail.affectedVersion, status: 'ARCHIVED' },
+        {
+          ...detail.affectedVersion,
+          status: 'ARCHIVED',
+          depth: 1,
+          pathLabel: detail.affectedVersion.versionNo,
+        },
       ]
     }
   } catch (error) {
@@ -346,7 +353,7 @@ onMounted(load)
         <section class="panel detail-main">
           <div class="content-block">
             <span class="block-label">问题描述</span>
-            <p class="description">{{ ticket.description }}</p>
+            <SafeMarkdownContent :content="ticket.description" />
           </div>
           <div v-if="ticket.resolution" class="content-block resolution-block">
             <span class="block-label">解决方案</span>
@@ -471,7 +478,7 @@ onMounted(load)
               <el-option
                 v-for="version in versions"
                 :key="version.id"
-                :label="`${version.versionNo} · ${version.name}`"
+                :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
                 :value="version.id"
               />
             </el-select>
@@ -486,7 +493,12 @@ onMounted(load)
           </el-radio-group>
         </el-form-item>
         <el-form-item label="详细描述" required>
-          <el-input v-model="editForm.description" type="textarea" :rows="7" maxlength="20000" show-word-limit />
+          <MarkdownImageEditor
+            v-model="editForm.description"
+            :rows="7"
+            :maxlength="20000"
+            placeholder="描述问题，可直接粘贴图片"
+          />
         </el-form-item>
         <el-form-item label="追加附件">
           <el-upload
@@ -513,7 +525,7 @@ onMounted(load)
             <el-option
               v-for="version in versions.filter((item) => item.status !== 'ARCHIVED')"
               :key="version.id"
-              :label="`${version.versionNo} · ${version.name}`"
+              :label="`${'— '.repeat(version.depth - 1)}${version.pathLabel} · ${version.name}`"
               :value="version.id"
             />
           </el-select>

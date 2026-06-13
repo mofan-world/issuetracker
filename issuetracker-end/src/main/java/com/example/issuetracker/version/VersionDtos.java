@@ -23,7 +23,8 @@ public final class VersionDtos {
             @Size(max = 5000) String description,
             @NotNull ProductVersionStatus status,
             LocalDate releaseDate,
-            boolean enabled
+            boolean enabled,
+            Long parentId
     ) {
     }
 
@@ -35,12 +36,23 @@ public final class VersionDtos {
             ProductVersionStatus status,
             LocalDate releaseDate,
             boolean enabled,
+            Long parentId,
+            String parentVersionNo,
+            int depth,
+            String pathLabel,
             Instant createdAt,
             Instant updatedAt
     ) {
     }
 
-    public record VersionOption(Long id, String versionNo, String name, ProductVersionStatus status) {
+    public record VersionOption(
+            Long id,
+            String versionNo,
+            String name,
+            ProductVersionStatus status,
+            Long parentId,
+            int depth,
+            String pathLabel
+    ) {
     }
 }
-

@@ -38,12 +38,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
             select t from Ticket t
             where (:status is null or t.status = :status)
               and (:priority is null or t.priority = :priority)
-              and (:userId is null or t.creator.id = :userId or t.assignee.id = :userId)
+              and (:visibilityUserId is null or t.creator.id = :visibilityUserId or t.assignee.id = :visibilityUserId)
+              and (:creatorId is null or t.creator.id = :creatorId)
             """)
     Page<Ticket> search(
             @Param("status") TicketStatus status,
             @Param("priority") TicketPriority priority,
-            @Param("userId") Long userId,
+            @Param("visibilityUserId") Long visibilityUserId,
+            @Param("creatorId") Long creatorId,
             Pageable pageable
     );
 
@@ -51,7 +53,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
             select t from Ticket t
             where (:status is null or t.status = :status)
               and (:priority is null or t.priority = :priority)
-              and (:userId is null or t.creator.id = :userId or t.assignee.id = :userId)
+              and (:visibilityUserId is null or t.creator.id = :visibilityUserId or t.assignee.id = :visibilityUserId)
+              and (:creatorId is null or t.creator.id = :creatorId)
               and (
                 lower(t.title) like lower(concat('%', :keyword, '%'))
                 or lower(t.description) like lower(concat('%', :keyword, '%'))
@@ -62,7 +65,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
             @Param("keyword") String keyword,
             @Param("status") TicketStatus status,
             @Param("priority") TicketPriority priority,
-            @Param("userId") Long userId,
+            @Param("visibilityUserId") Long visibilityUserId,
+            @Param("creatorId") Long creatorId,
             Pageable pageable
     );
 

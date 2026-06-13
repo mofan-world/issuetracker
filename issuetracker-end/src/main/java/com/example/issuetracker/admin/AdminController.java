@@ -100,5 +100,11 @@ public class AdminController {
     public List<UserOption> assignees(@RequestParam(required = false) String keyword) {
         return adminService.listAssignees(keyword);
     }
+
+    @GetMapping("/api/users/options")
+    @PreAuthorize("hasAuthority('ticket:read:all')")
+    public List<UserOption> userOptions(@RequestParam(required = false) String keyword) {
+        return adminService.listUserOptions(keyword);
+    }
 }
 

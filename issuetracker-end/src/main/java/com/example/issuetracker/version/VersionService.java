@@ -15,6 +15,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -51,8 +53,12 @@ public class VersionService {
                         version.getId(),
                         version.getVersionNo(),
                         version.getName(),
-                        version.getStatus()
+                        version.getStatus(),
+                        version.getParent() == null ? null : version.getParent().getId(),
+                        depth(version),
+                        pathLabel(version)
                 ))
+                .sorted(Comparator.comparing(VersionOption::pathLabel))
                 .toList();
     }
 
@@ -62,7 +68,7 @@ public class VersionService {
             throw BusinessException.badRequest("VERSION_EXISTS", "版本号已存在");
         }
         ProductVersion version = new ProductVersion();
-        apply(version, request);
+        apply(version, request, null);
         version.setCreatedBy(currentUser.require());
         return toView(versionRepository.save(version));
     }
@@ -73,7 +79,7 @@ public class VersionService {
         if (versionRepository.existsByVersionNoIgnoreCaseAndIdNot(request.versionNo().trim(), id)) {
             throw BusinessException.badRequest("VERSION_EXISTS", "版本号已存在");
         }
-        apply(version, request);
+        apply(version, request, id);
         return toView(versionRepository.save(version));
     }
 
@@ -82,6 +88,9 @@ public class VersionService {
         ProductVersion version = requireVersion(id);
         if (ticketRepository.countByAffectedVersionIdOrResolvedVersionId(id, id) > 0) {
             throw BusinessException.badRequest("VERSION_IN_USE", "该版本已被问题单引用，不能删除，可改为停用或归档");
+        }
+        if (versionRepository.existsByParentId(id)) {
+            throw BusinessException.badRequest("VERSION_HAS_CHILDREN", "该版本存在子版本，不能删除");
         }
         versionRepository.delete(version);
     }
@@ -97,13 +106,19 @@ public class VersionService {
                 .orElseThrow(() -> BusinessException.notFound("版本不存在"));
     }
 
-    private void apply(ProductVersion version, SaveVersionRequest request) {
+    private void apply(ProductVersion version, SaveVersionRequest request, Long currentId) {
+        ProductVersion parent = resolveParent(request.parentId(), currentId);
         version.setVersionNo(request.versionNo().trim());
         version.setName(request.name().trim());
         version.setDescription(request.description() == null ? null : request.description().trim());
         version.setStatus(request.status());
         version.setReleaseDate(request.releaseDate());
         version.setEnabled(request.enabled());
+        version.setParent(parent);
+        int subtreeHeight = currentId == null ? 1 : subtreeHeight(currentId, 1);
+        if (depth(version) + subtreeHeight - 1 > 5) {
+            throw BusinessException.badRequest("VERSION_DEPTH_EXCEEDED", "版本层级最多为 5 层");
+        }
     }
 
     private VersionView toView(ProductVersion version) {
@@ -115,9 +130,68 @@ public class VersionService {
                 version.getStatus(),
                 version.getReleaseDate(),
                 version.isEnabled(),
+                version.getParent() == null ? null : version.getParent().getId(),
+                version.getParent() == null ? null : version.getParent().getVersionNo(),
+                depth(version),
+                pathLabel(version),
                 version.getCreatedAt(),
                 version.getUpdatedAt()
         );
     }
-}
 
+    private ProductVersion resolveParent(Long parentId, Long currentId) {
+        if (parentId == null) {
+            return null;
+        }
+        ProductVersion parent = requireVersion(parentId);
+        ProductVersion cursor = parent;
+        int parentDepth = 0;
+        while (cursor != null) {
+            parentDepth++;
+            if (currentId != null && currentId.equals(cursor.getId())) {
+                throw BusinessException.badRequest("VERSION_CYCLE", "父版本不能是当前版本或其子版本");
+            }
+            if (parentDepth >= 5) {
+                throw BusinessException.badRequest("VERSION_DEPTH_EXCEEDED", "版本层级最多为 5 层");
+            }
+            cursor = cursor.getParent();
+        }
+        return parent;
+    }
+
+    private int depth(ProductVersion version) {
+        int depth = 1;
+        ProductVersion cursor = version.getParent();
+        while (cursor != null) {
+            depth++;
+            if (depth > 5) {
+                throw BusinessException.badRequest("VERSION_DEPTH_EXCEEDED", "版本层级最多为 5 层");
+            }
+            cursor = cursor.getParent();
+        }
+        return depth;
+    }
+
+    private String pathLabel(ProductVersion version) {
+        List<String> parts = new ArrayList<>();
+        ProductVersion cursor = version;
+        int guard = 0;
+        while (cursor != null && guard++ < 5) {
+            parts.add(0, cursor.getVersionNo());
+            cursor = cursor.getParent();
+        }
+        return String.join(" / ", parts);
+    }
+
+    private int subtreeHeight(Long versionId, int level) {
+        if (level > 5) {
+            throw BusinessException.badRequest("VERSION_DEPTH_EXCEEDED", "版本层级最多为 5 层");
+        }
+        List<ProductVersion> children = versionRepository.findByParentId(versionId);
+        int height = 1;
+        for (ProductVersion child : children) {
+            height = Math.max(height, 1 + subtreeHeight(child.getId(), level + 1));
+        }
+        return height;
+    }
+}

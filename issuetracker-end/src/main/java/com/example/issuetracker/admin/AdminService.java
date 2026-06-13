@@ -154,6 +154,16 @@ public class AdminService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<UserOption> listUserOptions(String keyword) {
+        var pageable = PageRequest.of(0, 100, Sort.by("displayName"));
+        String query = keyword == null ? "" : keyword.trim();
+        return userRepository.searchActiveUsers(query, pageable).stream()
+                .filter(User::isEnabled)
+                .map(user -> new UserOption(user.getId(), user.getUsername(), user.getDisplayName()))
+                .toList();
+    }
+
     private User requireUser(Long userId) {
         return userRepository.findWithRolesById(userId)
                 .orElseThrow(() -> BusinessException.notFound("用户不存在"));

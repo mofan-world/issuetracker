@@ -17,5 +17,8 @@ public interface ProductVersionRepository extends JpaRepository<ProductVersion, 
             String versionNo, String name, Pageable pageable);
 
     List<ProductVersion> findByEnabledTrueOrderByCreatedAtDesc();
-}
 
+    boolean existsByParentId(Long parentId);
+
+    List<ProductVersion> findByParentId(Long parentId);
+}

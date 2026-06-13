@@ -40,6 +40,14 @@ public class FileStorageService {
     }
 
     public StoredFile store(MultipartFile file) {
+        return store(file, "");
+    }
+
+    public StoredFile storeInlineImage(MultipartFile file) {
+        return store(file, "inline-");
+    }
+
+    private StoredFile store(MultipartFile file, String keyPrefix) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.badRequest("EMPTY_ATTACHMENT", "不能上传空文件");
         }
@@ -58,7 +66,7 @@ public class FileStorageService {
                     "不支持的附件类型: " + extension
             );
         }
-        String storageKey = UUID.randomUUID() + "." + extension;
+        String storageKey = keyPrefix + UUID.randomUUID() + "." + extension;
         Path target = resolve(storageKey);
         try (var input = file.getInputStream()) {
             Files.copy(input, target);

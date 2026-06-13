@@ -7,6 +7,7 @@ import com.example.issuetracker.domain.ProductVersion;
 import com.example.issuetracker.domain.Ticket;
 import com.example.issuetracker.domain.TicketPriority;
 import com.example.issuetracker.domain.TicketStatus;
+import com.example.issuetracker.domain.TicketScope;
 import com.example.issuetracker.domain.TicketTransition;
 import com.example.issuetracker.domain.User;
 import com.example.issuetracker.repository.TicketRepository;
@@ -111,19 +112,25 @@ public class TicketService {
             String keyword,
             TicketStatus status,
             TicketPriority priority,
+            TicketScope scope,
+            Long requestedCreatorId,
             int page,
             int size
     ) {
         User user = currentUser.require();
         Set<String> permissions = currentUser.permissions(user);
-        Long userId = permissions.contains("ticket:read:all") ? null : user.getId();
+        TicketFilter filter = resolveFilter(user, permissions, scope, requestedCreatorId);
         var pageable = PageRequest.of(
                 Math.max(page, 0),
                 Math.max(1, Math.min(size, 100)),
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 
-        if (StringUtils.hasText(keyword) && userId == null && status == null && priority == null) {
+        if (StringUtils.hasText(keyword)
+                && filter.visibilityUserId() == null
+                && filter.creatorId() == null
+                && status == null
+                && priority == null) {
             TicketSearchService.SearchResult searchResult =
                     searchService.search(keyword.trim(), pageable.getPageNumber(), pageable.getPageSize());
             if (searchResult.available()) {
@@ -143,8 +150,11 @@ public class TicketService {
         }
 
         Page<Ticket> result = StringUtils.hasText(keyword)
-                ? ticketRepository.searchWithKeyword(keyword.trim(), status, priority, userId, pageable)
-                : ticketRepository.search(status, priority, userId, pageable);
+                ? ticketRepository.searchWithKeyword(
+                        keyword.trim(), status, priority,
+                        filter.visibilityUserId(), filter.creatorId(), pageable)
+                : ticketRepository.search(
+                        status, priority, filter.visibilityUserId(), filter.creatorId(), pageable);
         return new PageResult<>(
                 result.getContent().stream().map(this::toSummary).toList(),
                 result.getNumber(),
@@ -344,7 +354,8 @@ public class TicketService {
                 toVersionSummary(ticket.getResolvedVersion()),
                 ticket.getVersion(),
                 ticket.getCreatedAt(),
-                ticket.getUpdatedAt()
+                ticket.getUpdatedAt(),
+                ticket.getResolvedAt()
         );
     }
 
@@ -393,5 +404,42 @@ public class TicketService {
         return version == null
                 ? null
                 : new VersionSummary(version.getId(), version.getVersionNo(), version.getName());
+    }
+
+    private TicketFilter resolveFilter(
+            User user,
+            Set<String> permissions,
+            TicketScope requestedScope,
+            Long requestedCreatorId
+    ) {
+        boolean canReadAll = permissions.contains("ticket:read:all");
+        TicketScope scope = requestedScope == null
+                ? (canReadAll ? TicketScope.ALL : TicketScope.RELATED)
+                : requestedScope;
+        if (!canReadAll) {
+            if (scope == TicketScope.MY_CREATED) {
+                return new TicketFilter(user.getId(), user.getId());
+            }
+            if (scope == TicketScope.CREATED_BY
+                    && requestedCreatorId != null
+                    && requestedCreatorId.equals(user.getId())) {
+                return new TicketFilter(user.getId(), user.getId());
+            }
+            return new TicketFilter(user.getId(), null);
+        }
+        return switch (scope) {
+            case ALL -> new TicketFilter(null, null);
+            case RELATED -> new TicketFilter(user.getId(), null);
+            case MY_CREATED -> new TicketFilter(null, user.getId());
+            case CREATED_BY -> {
+                if (requestedCreatorId == null) {
+                    throw BusinessException.badRequest("CREATOR_REQUIRED", "请选择创建人");
+                }
+                yield new TicketFilter(null, requestedCreatorId);
+            }
+        };
+    }
+
+    private record TicketFilter(Long visibilityUserId, Long creatorId) {
     }
 }

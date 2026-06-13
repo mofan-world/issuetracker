@@ -1,6 +1,6 @@
 # 问题单跟踪系统
 
-面向约 20 万注册用户的问题单管理系统。采用可水平扩展的模块化单体，覆盖注册登录、用户管理、产品版本、问题单创建与流转、附件、验证关闭以及 RBAC 权限控制。
+面向约 20 万注册用户的问题单管理系统。采用可水平扩展的模块化单体，覆盖注册登录、用户管理、多层产品版本、问题单创建与流转、附件、详情图片、验证关闭以及 RBAC 权限控制。
 
 ## 技术栈
 
@@ -27,6 +27,8 @@ stateDiagram-v2
 ```
 
 每次流转都会写入 `ticket_transitions` 审计表。问题单带 JPA 乐观锁版本号，过期操作返回 HTTP `409`。
+
+问题单列表支持全部、与我相关、我创建的和指定创建人四种视图，并可按用户保存列展示偏好。可选列包括创建人、当前处理人、发现问题版本、解决问题版本、创建时间、更新时间和解决时间等。
 
 ## 角色权限
 
@@ -110,6 +112,9 @@ npm.cmd run dev
 | `POST` | `/api/tickets/{id}/close` | 关闭 |
 | `POST` | `/api/tickets/{id}/attachments` | 上传附件 |
 | `GET` | `/api/tickets/attachments/{id}` | 下载附件 |
+| `POST` | `/api/inline-images` | 上传描述中的粘贴图片 |
+| `GET` | `/api/inline-images/{storageKey}` | 查看描述中的图片 |
+| `GET` | `/api/users/options` | 获取问题单创建人筛选项 |
 | `POST` | `/api/admin/users` | 管理员创建可登录用户 |
 | `PUT` | `/api/admin/users/{id}` | 更新用户、密码和角色 |
 | `DELETE` | `/api/admin/users/{id}` | 逻辑删除用户 |
@@ -117,7 +122,11 @@ npm.cmd run dev
 | `GET/POST` | `/api/versions` | 查询或创建产品版本 |
 | `PUT/DELETE` | `/api/versions/{id}` | 更新或删除产品版本 |
 
-创建问题单必须指定问题所在版本。开发人员提交解决方案时必须指定解决版本。附件支持 Word、Excel、PDF、常见图片、文本、CSV 和 ZIP，默认单文件最大 20MB，每张问题单最多 20 个附件。
+创建问题单必须指定问题所在版本。产品版本支持父子层级，最多 5 层，并禁止循环引用。开发人员提交解决方案时必须指定解决版本。
+
+附件支持 Word、Excel、PDF、常见图片、文本、CSV 和 ZIP，默认单文件最大 20MB，每张问题单最多 20 个附件。问题描述支持直接粘贴 PNG、JPG、GIF 或 WebP 图片，单张图片最大 5MB。
+
+前端默认使用中文（包含 Element Plus 分页文案），右上角可切换中英文，语言偏好保存在浏览器本地。
 
 ## 20 万用户容量设计
 

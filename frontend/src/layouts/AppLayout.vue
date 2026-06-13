@@ -3,10 +3,12 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Tickets, Plus, User, SwitchButton, Collection } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAppI18n } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { locale, t } = useAppI18n()
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/admin/versions')) return '/admin/versions'
@@ -27,7 +29,7 @@ async function logout() {
       <div class="brand">
         <div class="brand-mark">IT</div>
         <div>
-          <strong>问题单中心</strong>
+          <strong>{{ t('app.center') }}</strong>
           <span>Issue Tracker</span>
         </div>
       </div>
@@ -35,19 +37,19 @@ async function logout() {
       <el-menu :default-active="activeMenu" router>
         <el-menu-item index="/tickets">
           <el-icon><Tickets /></el-icon>
-          <span>问题单列表</span>
+          <span>{{ t('nav.tickets') }}</span>
         </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('ticket:create')" index="/tickets/new">
           <el-icon><Plus /></el-icon>
-          <span>创建问题单</span>
+          <span>{{ t('nav.createTicket') }}</span>
         </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('user:manage')" index="/admin/users">
           <el-icon><User /></el-icon>
-          <span>用户与权限</span>
+          <span>{{ t('nav.users') }}</span>
         </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('version:manage')" index="/admin/versions">
           <el-icon><Collection /></el-icon>
-          <span>版本管理</span>
+          <span>{{ t('nav.versions') }}</span>
         </el-menu-item>
       </el-menu>
 
@@ -57,7 +59,7 @@ async function logout() {
           <strong>{{ auth.user?.displayName }}</strong>
           <span>{{ auth.user?.roles.join(' / ') }}</span>
         </div>
-        <el-button :icon="SwitchButton" circle text title="退出登录" @click="logout" />
+        <el-button :icon="SwitchButton" circle text :title="t('app.logout')" @click="logout" />
       </div>
     </aside>
 
@@ -65,9 +67,9 @@ async function logout() {
       <header class="topbar">
         <div>
           <span class="eyebrow">WORKSPACE</span>
-          <h1>{{ route.meta.title }}</h1>
+          <h1>{{ route.meta.titleKey ? t(route.meta.titleKey) : t('app.workspace') }}</h1>
         </div>
-        <span class="topbar-date">{{ new Date().toLocaleDateString('zh-CN') }}</span>
+        <span class="topbar-date">{{ new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN') }}</span>
       </header>
       <div class="page-body">
         <router-view />

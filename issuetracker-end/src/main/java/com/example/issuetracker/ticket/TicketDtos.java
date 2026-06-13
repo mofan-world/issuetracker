@@ -89,7 +89,8 @@ public final class TicketDtos {
             VersionSummary resolvedVersion,
             long version,
             Instant createdAt,
-            Instant updatedAt
+            Instant updatedAt,
+            Instant resolvedAt
     ) {
     }
 
