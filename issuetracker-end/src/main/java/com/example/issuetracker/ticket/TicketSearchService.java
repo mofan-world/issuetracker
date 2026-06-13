@@ -73,6 +73,7 @@ public class TicketSearchService {
                 ticket.getCategory(),
                 ticket.getPriority(),
                 ticket.getStatus(),
+                ticket.getProject().getId(),
                 ticket.getCreator().getId(),
                 ticket.getAssignee() == null ? null : ticket.getAssignee().getId(),
                 ticket.getCreatedAt(),

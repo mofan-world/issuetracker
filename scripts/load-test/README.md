@@ -2,11 +2,14 @@
 
 该工具以 PostgreSQL 集合运算批量生成：
 
+- 压测项目 1 个：`LOAD_TEST`
 - 测试人员 1000 个：`load_tester_0001` 至 `load_tester_1000`
 - 开发人员 1000 个：`load_developer_0001` 至 `load_developer_1000`
 - 管理员 50 个：`load_admin_001` 至 `load_admin_050`
 - 每个测试人员 1000 张问题单，共 1,000,000 张
 - 每人 900 张已关闭、100 张处理中，比例为 9:1
+
+以上用户都会加入 `LOAD_TEST` 项目，生成的问题单也全部归属于该项目。
 
 默认登录密码为 `LoadTest@123`。可通过参数修改：
 

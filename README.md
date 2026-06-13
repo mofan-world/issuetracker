@@ -1,6 +1,6 @@
 # 问题单跟踪系统
 
-面向约 20 万注册用户的问题单管理系统。采用可水平扩展的模块化单体，覆盖注册登录、用户管理、多层产品版本、问题单创建与流转、附件、详情图片、验证关闭以及 RBAC 权限控制。
+面向约 20 万注册用户的问题单管理系统。采用可水平扩展的模块化单体，覆盖注册登录、项目与成员管理、用户管理、多层产品版本、问题单创建与流转、附件、详情图片、验证关闭以及 RBAC 权限控制。
 
 ## 技术栈
 
@@ -10,7 +10,7 @@
 - 前端：Vue 3、TypeScript、Vite、Pinia、Element Plus
 - 部署：Docker Compose、Nginx
 
-Elasticsearch 用于全文检索，不作为权威数据源；检索服务不可用时自动回退 PostgreSQL。Redis 用于刷新令牌、会话状态和后续热点缓存扩展。
+Elasticsearch 用于异步构建问题单搜索文档，不作为权威数据源；项目范围内的问题单过滤和检索以 PostgreSQL 为准。Redis 用于刷新令牌、会话状态和后续热点缓存扩展。
 
 ## 核心流程
 
@@ -32,6 +32,8 @@ stateDiagram-v2
 
 版本管理采用可展开的树形表格展示父子版本；创建、编辑问题单和提交解决方案时使用可检索的树形版本选择器。
 
+用户可以参与多个项目，登录后在顶部切换当前项目，问题单列表只展示当前项目数据。每张问题单必须且只能归属于一个项目；创建问题单时默认使用当前项目，也可以选择用户参与的其他项目。管理员可以维护项目成员、从其他项目复制成员，或通过 `.xlsx` 批量导入成员。
+
 ## 角色权限
 
 | 角色 | 默认能力 |
@@ -41,8 +43,8 @@ stateDiagram-v2
 | `REVIEWER` | 验证、驳回和关闭问题单 |
 | `TESTER` | 创建和验证问题单、关闭验证通过的问题单 |
 | `DEVELOPER` | 查看全部问题单、处理被分派的问题单并提交解决版本 |
-| `MANAGER` | 用户、角色、版本和全部问题单管理 |
-| `ADMIN` | 全部权限、分派问题单、管理用户角色 |
+| `MANAGER` | 用户、角色、项目、版本和全部问题单管理 |
+| `ADMIN` | 全部权限、分派问题单、管理用户角色和项目 |
 
 新注册用户默认获得 `USER` 角色。首次启动会创建管理员：
 
@@ -117,6 +119,11 @@ npm.cmd run dev
 | `POST` | `/api/inline-images` | 上传描述中的粘贴图片 |
 | `GET` | `/api/inline-images/{storageKey}` | 查看描述中的图片 |
 | `GET` | `/api/users/options` | 获取问题单创建人筛选项 |
+| `GET` | `/api/projects/my` | 获取当前用户参与或可管理的项目 |
+| `GET/POST` | `/api/admin/projects` | 查询或创建项目 |
+| `GET/POST` | `/api/admin/projects/{id}/members` | 查询或增加项目成员 |
+| `POST` | `/api/admin/projects/{id}/members/copy` | 从其他项目批量导入成员 |
+| `POST` | `/api/admin/projects/{id}/members/import` | 从 `.xlsx` 批量导入成员 |
 | `POST` | `/api/admin/users` | 管理员创建可登录用户 |
 | `PUT` | `/api/admin/users/{id}` | 更新用户、密码和角色 |
 | `DELETE` | `/api/admin/users/{id}` | 逻辑删除用户 |
@@ -124,9 +131,9 @@ npm.cmd run dev
 | `GET/POST` | `/api/versions` | 查询或创建产品版本 |
 | `PUT/DELETE` | `/api/versions/{id}` | 更新或删除产品版本 |
 
-创建问题单必须指定问题所在版本。产品版本支持父子层级，最多 5 层，并禁止循环引用。开发人员提交解决方案时必须指定解决版本。
+创建问题单必须指定所属项目和问题所在版本。产品版本支持父子层级，最多 5 层，并禁止循环引用。开发人员提交解决方案时必须指定解决版本。
 
-附件支持 Word、Excel、PDF、常见图片、文本、CSV 和 ZIP，默认单文件最大 20MB，每张问题单最多 20 个附件。问题描述支持直接粘贴 PNG、JPG、GIF 或 WebP 图片，单张图片最大 5MB。
+附件支持 Word、Excel、PDF、常见图片、文本、CSV 和 ZIP，默认单文件最大 20MB，每张问题单最多 20 个附件。问题描述支持直接粘贴 PNG、JPG、GIF 或 WebP 图片，单张图片最大 20MB。
 
 前端默认使用中文（包含 Element Plus 分页文案），右上角可切换中英文，语言偏好保存在浏览器本地。
 

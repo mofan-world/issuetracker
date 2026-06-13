@@ -11,6 +11,7 @@ import com.example.issuetracker.repository.TicketRepository;
 import com.example.issuetracker.security.CurrentUser;
 import com.example.issuetracker.ticket.TicketDtos.AttachmentView;
 import com.example.issuetracker.ticket.TicketDtos.UserSummary;
+import com.example.issuetracker.project.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class TicketAttachmentService {
     private final FileStorageService fileStorageService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
+    private final ProjectService projectService;
 
     @Transactional
     public List<AttachmentView> upload(Long ticketId, List<MultipartFile> files) {
@@ -100,6 +102,7 @@ public class TicketAttachmentService {
             throw BusinessException.forbidden("已关闭问题单仅允许查看，不能删除附件");
         }
         User operator = currentUser.require();
+        projectService.requireAccessibleProject(attachment.getTicket().getProject().getId(), operator);
         Set<String> permissions = currentUser.permissions(operator);
         boolean owner = attachment.getUploader().getId().equals(operator.getId());
         boolean creator = attachment.getTicket().getCreator().getId().equals(operator.getId());
@@ -129,6 +132,7 @@ public class TicketAttachmentService {
     }
 
     private void requireVisible(Ticket ticket, User user) {
+        projectService.requireAccessibleProject(ticket.getProject().getId(), user);
         if (currentUser.permissions(user).contains("ticket:read:all")) {
             return;
         }
@@ -140,6 +144,7 @@ public class TicketAttachmentService {
     }
 
     private void requireModifiable(Ticket ticket, User user) {
+        projectService.requireAccessibleProject(ticket.getProject().getId(), user);
         if (ticket.getStatus() == TicketStatus.CLOSED) {
             throw BusinessException.forbidden("已关闭问题单仅允许查看，不能上传附件");
         }

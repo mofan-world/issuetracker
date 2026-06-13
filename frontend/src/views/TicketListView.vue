@@ -6,6 +6,7 @@ import { Plus, Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { http, errorMessage } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/project'
 import { useAppI18n } from '@/i18n'
 import type {
   PageResult,
@@ -70,8 +71,10 @@ const categoryKeys: Record<string, string> = {
 
 const router = useRouter()
 const auth = useAuthStore()
+const projectStore = useProjectStore()
 const { t } = useAppI18n()
 const loading = ref(false)
+const creatorLoading = ref(false)
 const tickets = ref<TicketSummary[]>([])
 const creators = ref<UserSummary[]>([])
 const total = ref(0)
@@ -127,6 +130,11 @@ function categoryLabel(category: string) {
 }
 
 async function load() {
+  if (!projectStore.currentProjectId) {
+    tickets.value = []
+    total.value = 0
+    return
+  }
   if (query.scope === 'CREATED_BY' && !query.creatorId) {
     tickets.value = []
     total.value = 0
@@ -154,13 +162,19 @@ async function load() {
   }
 }
 
-async function loadCreators() {
-  if (!auth.hasPermission('ticket:read:all')) return
+async function loadCreators(keyword = '') {
+  if (!auth.hasPermission('ticket:read:all') || !projectStore.currentProjectId) return
+  creatorLoading.value = true
   try {
-    const { data } = await http.get<UserSummary[]>('/api/users/options')
+    const { data } = await http.get<UserSummary[]>(
+      `/api/projects/${projectStore.currentProjectId}/users/options`,
+      { params: { keyword: keyword || undefined } },
+    )
     creators.value = data
   } catch (error) {
     ElMessage.error(errorMessage(error))
+  } finally {
+    creatorLoading.value = false
   }
 }
 
@@ -178,9 +192,16 @@ watch(selectedColumns, (columns) => {
   localStorage.setItem(storageKey.value, JSON.stringify(columns))
 }, { deep: true })
 
-onMounted(() => {
+watch(() => projectStore.currentProjectId, () => {
+  query.page = 1
+  query.creatorId = undefined
   load()
   loadCreators()
+})
+
+onMounted(async () => {
+  await projectStore.loadProjects()
+  await Promise.all([load(), loadCreators()])
 })
 </script>
 
@@ -228,6 +249,9 @@ onMounted(() => {
           v-if="query.scope === 'CREATED_BY'"
           v-model="query.creatorId"
           filterable
+          remote
+          :remote-method="loadCreators"
+          :loading="creatorLoading"
           :placeholder="t('ticket.creatorPlaceholder')"
           @change="search"
         >

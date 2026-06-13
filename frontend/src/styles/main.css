@@ -185,6 +185,17 @@ h1, h2, p {
   color: var(--muted);
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-right: 78px;
+}
+
+.project-switcher {
+  width: 260px;
+}
+
 .workspace-tabs {
   height: 42px;
   padding: 0 40px;
@@ -534,6 +545,11 @@ h1, h2, p {
 
 .attachment-upload .el-upload-list {
   min-width: 360px;
+}
+
+.project-member-toolbar {
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
 .markdown-image-editor {

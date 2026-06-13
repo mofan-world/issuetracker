@@ -50,6 +50,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/VersionManagementView.vue'),
         meta: { titleKey: 'nav.versions', permission: 'version:manage' },
       },
+      {
+        path: 'admin/projects',
+        component: () => import('@/views/ProjectManagementView.vue'),
+        meta: { titleKey: 'nav.projects', permission: 'project:manage' },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -25,6 +25,20 @@ ON CONFLICT (version_no) DO UPDATE SET
     enabled = EXCLUDED.enabled,
     updated_at = CURRENT_TIMESTAMP;
 
+INSERT INTO projects(code, name, description, enabled, created_by)
+VALUES (
+    'LOAD_TEST',
+    '百万问题单压测项目',
+    '由 scripts/load-test/generate-load-test-data.sql 创建',
+    TRUE,
+    (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+)
+ON CONFLICT (code) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    enabled = TRUE,
+    updated_at = CURRENT_TIMESTAMP;
+
 WITH password_value AS (
     SELECT crypt(:'load_password', gen_salt('bf', 12)) AS password_hash
 ),
@@ -92,6 +106,18 @@ WHERE user_account.username LIKE 'load_tester_%'
    OR user_account.username LIKE 'load_admin_%'
 ON CONFLICT DO NOTHING;
 
+INSERT INTO project_members(project_id, user_id)
+SELECT project.id, user_account.id
+FROM projects project
+CROSS JOIN users user_account
+WHERE project.code = 'LOAD_TEST'
+  AND (
+      user_account.username LIKE 'load_tester_%'
+      OR user_account.username LIKE 'load_developer_%'
+      OR user_account.username LIKE 'load_admin_%'
+  )
+ON CONFLICT (project_id, user_id) DO NOTHING;
+
 WITH tester_users AS (
     SELECT
         id,
@@ -115,6 +141,11 @@ load_version AS (
     FROM product_versions
     WHERE version_no = 'LOAD-TEST-1.0'
 ),
+load_project AS (
+    SELECT id
+    FROM projects
+    WHERE code = 'LOAD_TEST'
+),
 generated_tickets AS (
     SELECT
         tester.id AS creator_id,
@@ -122,6 +153,7 @@ generated_tickets AS (
         tester.tester_number,
         ticket_number,
         version.id AS version_id,
+        project.id AS project_id,
         ticket_number <= 900 AS is_closed
     FROM tester_users tester
     CROSS JOIN generate_series(1, 1000) AS ticket_number
@@ -129,6 +161,7 @@ generated_tickets AS (
       ON developer.developer_number =
          ((tester.tester_number + ticket_number - 2) % 1000) + 1
     CROSS JOIN load_version version
+    CROSS JOIN load_project project
 )
 INSERT INTO tickets(
     ticket_no,
@@ -137,6 +170,7 @@ INSERT INTO tickets(
     category,
     priority,
     status,
+    project_id,
     creator_id,
     assignee_id,
     affected_version_id,
@@ -169,6 +203,7 @@ SELECT
         ELSE 'CRITICAL'
     END,
     CASE WHEN is_closed THEN 'CLOSED' ELSE 'IN_PROGRESS' END,
+    project_id,
     creator_id,
     assignee_id,
     version_id,
@@ -187,6 +222,7 @@ ON CONFLICT (ticket_no) DO UPDATE SET
     category = EXCLUDED.category,
     priority = EXCLUDED.priority,
     status = EXCLUDED.status,
+    project_id = EXCLUDED.project_id,
     creator_id = EXCLUDED.creator_id,
     assignee_id = EXCLUDED.assignee_id,
     affected_version_id = EXCLUDED.affected_version_id,

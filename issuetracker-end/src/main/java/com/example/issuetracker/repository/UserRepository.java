@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -26,6 +28,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     @Query("select u from User u where u.id = :id and u.deleted = false")
     Optional<User> findWithRolesById(@Param("id") Long id);
+
+    List<User> findByUsernameInAndDeletedFalse(Collection<String> usernames);
+
+    List<User> findByEmailInAndDeletedFalse(Collection<String> emails);
 
     @Query("""
             select u from User u

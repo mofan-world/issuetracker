@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Tickets, Plus, User, SwitchButton, Collection } from '@element-plus/icons-vue'
+import { Tickets, Plus, User, SwitchButton, Collection, FolderOpened } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/project'
 import { useAppI18n } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const projects = useProjectStore()
 const { locale, t } = useAppI18n()
 
 interface WorkspaceTab {
@@ -20,6 +22,7 @@ const tabs = ref<WorkspaceTab[]>([])
 const activeTab = ref(route.fullPath)
 
 const activeMenu = computed(() => {
+  if (route.path.startsWith('/admin/projects')) return '/admin/projects'
   if (route.path.startsWith('/admin/versions')) return '/admin/versions'
   if (route.path.startsWith('/admin')) return '/admin/users'
   if (route.path === '/tickets/new') return '/tickets/new'
@@ -56,8 +59,16 @@ function removeTab(path: string | number) {
 
 async function logout() {
   await auth.logout()
+  projects.reset()
   await router.replace('/login')
 }
+
+async function changeProject(projectId: number) {
+  projects.setCurrentProject(projectId)
+  if (route.path !== '/tickets') await router.push('/tickets')
+}
+
+onMounted(() => projects.loadProjects())
 </script>
 
 <template>
@@ -88,6 +99,10 @@ async function logout() {
           <el-icon><Collection /></el-icon>
           <span>{{ t('nav.versions') }}</span>
         </el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('project:manage')" index="/admin/projects">
+          <el-icon><FolderOpened /></el-icon>
+          <span>{{ t('nav.projects') }}</span>
+        </el-menu-item>
       </el-menu>
 
       <div class="sidebar-user">
@@ -106,7 +121,23 @@ async function logout() {
           <span class="eyebrow">WORKSPACE</span>
           <h1>{{ route.meta.titleKey ? t(route.meta.titleKey) : t('app.workspace') }}</h1>
         </div>
-        <span class="topbar-date">{{ new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN') }}</span>
+        <div class="topbar-actions">
+          <el-select
+            v-model="projects.currentProjectId"
+            class="project-switcher"
+            :loading="projects.loading"
+            :placeholder="t('project.selectCurrent')"
+            @change="changeProject"
+          >
+            <el-option
+              v-for="project in projects.projects"
+              :key="project.id"
+              :label="`${project.name} (${project.code})`"
+              :value="project.id"
+            />
+          </el-select>
+          <span class="topbar-date">{{ new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN') }}</span>
+        </div>
       </header>
       <el-tabs
         v-model="activeTab"

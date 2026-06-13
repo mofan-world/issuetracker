@@ -14,9 +14,11 @@ import type { TicketDetail, TicketPriority, VersionOption } from '@/types'
 import MarkdownImageEditor from '@/components/MarkdownImageEditor.vue'
 import VersionTreeSelect from '@/components/VersionTreeSelect.vue'
 import { useAppI18n } from '@/i18n'
+import { useProjectStore } from '@/stores/project'
 
 const router = useRouter()
 const { t } = useAppI18n()
+const projectStore = useProjectStore()
 const categoryOptions = [
   { key: 'FUNCTIONAL', value: '功能异常' },
   { key: 'PERFORMANCE', value: '性能问题' },
@@ -36,6 +38,7 @@ const form = reactive({
   category: '',
   priority: 'MEDIUM' as TicketPriority,
   affectedVersionId: undefined as number | undefined,
+  projectId: undefined as number | undefined,
 })
 const rules: FormRules = {
   title: [{ required: true, message: '请输入问题标题', trigger: 'blur' }],
@@ -43,6 +46,7 @@ const rules: FormRules = {
   category: [{ required: true, message: '请选择问题分类', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
   affectedVersionId: [{ required: true, message: '请选择问题所在版本', trigger: 'change' }],
+  projectId: [{ required: true, message: '请选择项目', trigger: 'change' }],
 }
 
 async function loadVersions() {
@@ -83,6 +87,7 @@ async function submit() {
       if (item.raw) body.append('files', item.raw, item.raw.name)
     })
     const { data } = await http.post<TicketDetail>('/api/tickets', body)
+    projectStore.setCurrentProject(form.projectId)
     ElMessage.success(`问题单 ${data.ticketNo} 已创建`)
     await router.replace(`/tickets/${data.id}`)
   } catch (error) {
@@ -92,7 +97,10 @@ async function submit() {
   }
 }
 
-onMounted(loadVersions)
+onMounted(async () => {
+  await Promise.all([loadVersions(), projectStore.loadProjects()])
+  form.projectId = projectStore.currentProjectId
+})
 </script>
 
 <template>
@@ -105,6 +113,21 @@ onMounted(loadVersions)
       <p>{{ t('ticket.create.intro') }}</p>
     </div>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <el-form-item :label="t('ticket.create.project')" prop="projectId" required>
+        <el-select
+          v-model="form.projectId"
+          size="large"
+          class="full-width"
+          :placeholder="t('ticket.create.projectPlaceholder')"
+        >
+          <el-option
+            v-for="project in projectStore.projects"
+            :key="project.id"
+            :label="`${project.name} (${project.code})`"
+            :value="project.id"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item :label="t('ticket.create.title')" prop="title">
         <el-input v-model="form.title" size="large" maxlength="200" show-word-limit :placeholder="t('ticket.create.titlePlaceholder')" />
       </el-form-item>

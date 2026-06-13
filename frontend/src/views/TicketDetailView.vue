@@ -41,6 +41,7 @@ const ticket = ref<TicketDetail>()
 const versions = ref<VersionOption[]>([])
 const assignVisible = ref(false)
 const assignees = ref<UserSummary[]>([])
+const assigneesLoading = ref(false)
 const selectedAssignee = ref<number>()
 const editVisible = ref(false)
 const editFiles = ref<UploadUserFile[]>([])
@@ -180,13 +181,28 @@ function validateFiles(filesToCheck: UploadUserFile[]) {
 }
 
 async function openAssign() {
+  if (!ticket.value) return
+  selectedAssignee.value = ticket.value.assignee?.id
+  assignVisible.value = true
+  await loadAssignees()
+}
+
+async function loadAssignees(keyword = '') {
+  if (!ticket.value) return
+  assigneesLoading.value = true
   try {
-    const { data } = await http.get<UserSummary[]>('/api/users/assignees')
-    assignees.value = data
-    selectedAssignee.value = ticket.value?.assignee?.id
-    assignVisible.value = true
+    const { data } = await http.get<UserSummary[]>(
+      `/api/projects/${ticket.value.project.id}/users/options`,
+      { params: { processorsOnly: true, keyword: keyword || undefined } },
+    )
+    const current = ticket.value.assignee
+    assignees.value = current && !data.some((user) => user.id === current.id)
+      ? [...data, current]
+      : data
   } catch (error) {
     ElMessage.error(errorMessage(error))
+  } finally {
+    assigneesLoading.value = false
   }
 }
 
@@ -496,6 +512,7 @@ onMounted(load)
         <aside class="panel metadata-panel">
           <span class="block-label">{{ t('ticket.detail.basicInfo') }}</span>
           <dl>
+            <div><dt>{{ t('ticket.detail.project') }}</dt><dd>{{ ticket.project.name }} ({{ ticket.project.code }})</dd></div>
             <div><dt>{{ t('ticket.detail.category') }}</dt><dd>{{ categoryLabel(ticket.category) }}</dd></div>
             <div><dt>{{ t('ticket.detail.affectedVersion') }}</dt><dd>{{ ticket.affectedVersion.versionNo }}</dd></div>
             <div><dt>{{ t('ticket.detail.resolvedVersion') }}</dt><dd>{{ ticket.resolvedVersion?.versionNo || '-' }}</dd></div>
@@ -509,7 +526,15 @@ onMounted(load)
     </template>
 
     <el-dialog v-model="assignVisible" :title="t('ticket.detail.assignTitle')" width="460px">
-      <el-select v-model="selectedAssignee" filterable class="full-width" :placeholder="t('ticket.detail.selectAssignee')">
+      <el-select
+        v-model="selectedAssignee"
+        filterable
+        remote
+        :remote-method="loadAssignees"
+        :loading="assigneesLoading"
+        class="full-width"
+        :placeholder="t('ticket.detail.selectAssignee')"
+      >
         <el-option
           v-for="user in assignees"
           :key="user.id"

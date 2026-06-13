@@ -44,6 +44,10 @@ public class Ticket extends BaseEntity {
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;

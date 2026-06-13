@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -71,10 +72,11 @@ public class TicketController {
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false) TicketScope scope,
             @RequestParam(required = false) Long creatorId,
+            @RequestHeader(value = "X-Project-Id", required = false) Long projectId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ticketService.list(keyword, status, priority, scope, creatorId, page, size);
+        return ticketService.list(keyword, status, priority, scope, creatorId, projectId, page, size);
     }
 
     @GetMapping("/{id}")

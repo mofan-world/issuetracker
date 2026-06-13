@@ -19,6 +19,35 @@ export interface UserProfile {
   permissions: string[]
 }
 
+export interface ProjectSummary {
+  id: number
+  code: string
+  name: string
+}
+
+export interface ProjectView extends ProjectSummary {
+  description?: string
+  enabled: boolean
+  memberCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectMember {
+  id: number
+  username: string
+  displayName: string
+  email: string
+  roles: string[]
+  joinedAt: string
+}
+
+export interface ProjectImportResult {
+  addedCount: number
+  ignoredCount: number
+  notFound: string[]
+}
+
 export interface TokenResponse {
   accessToken: string
   refreshToken: string
@@ -73,6 +102,7 @@ export interface TicketSummary {
   category: string
   priority: TicketPriority
   status: TicketStatus
+  project: ProjectSummary
   creator: UserSummary
   assignee?: UserSummary
   affectedVersion: VersionSummary

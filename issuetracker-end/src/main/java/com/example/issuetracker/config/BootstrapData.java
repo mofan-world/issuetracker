@@ -4,6 +4,7 @@ import com.example.issuetracker.domain.Role;
 import com.example.issuetracker.domain.User;
 import com.example.issuetracker.repository.RoleRepository;
 import com.example.issuetracker.repository.UserRepository;
+import com.example.issuetracker.project.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -21,6 +22,7 @@ public class BootstrapData implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AppProperties properties;
+    private final ProjectService projectService;
 
     @Override
     @Transactional
@@ -39,6 +41,7 @@ public class BootstrapData implements ApplicationRunner {
         admin.setEnabled(true);
         admin.getRoles().add(adminRole);
         userRepository.save(admin);
+        projectService.addToDefaultProject(admin);
     }
 }
 

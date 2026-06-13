@@ -13,6 +13,7 @@ import com.example.issuetracker.repository.RoleRepository;
 import com.example.issuetracker.repository.UserRepository;
 import com.example.issuetracker.security.CurrentUser;
 import com.example.issuetracker.security.JwtService;
+import com.example.issuetracker.project.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,6 +36,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final CurrentUser currentUser;
+    private final ProjectService projectService;
 
     @Transactional
     public TokenResponse register(RegisterRequest request) {
@@ -56,6 +58,7 @@ public class AuthService {
         user.setEnabled(true);
         user.getRoles().add(defaultRole);
         userRepository.save(user);
+        projectService.addToDefaultProject(user);
         return issueTokens(user);
     }
 

@@ -3,6 +3,7 @@ package com.example.issuetracker.ticket;
 import com.example.issuetracker.common.BusinessException;
 import com.example.issuetracker.attachment.TicketAttachmentService;
 import com.example.issuetracker.domain.Permission;
+import com.example.issuetracker.domain.Project;
 import com.example.issuetracker.domain.ProductVersion;
 import com.example.issuetracker.domain.Ticket;
 import com.example.issuetracker.domain.TicketPriority;
@@ -18,6 +19,7 @@ import com.example.issuetracker.ticket.TicketDtos.ActionRequest;
 import com.example.issuetracker.ticket.TicketDtos.AssignRequest;
 import com.example.issuetracker.ticket.TicketDtos.CreateTicketRequest;
 import com.example.issuetracker.ticket.TicketDtos.PageResult;
+import com.example.issuetracker.ticket.TicketDtos.ProjectSummary;
 import com.example.issuetracker.ticket.TicketDtos.ResolveRequest;
 import com.example.issuetracker.ticket.TicketDtos.TicketDetail;
 import com.example.issuetracker.ticket.TicketDtos.TicketSummary;
@@ -27,6 +29,7 @@ import com.example.issuetracker.ticket.TicketDtos.UserSummary;
 import com.example.issuetracker.ticket.TicketDtos.VersionSummary;
 import com.example.issuetracker.ticket.TicketDtos.VerifyRequest;
 import com.example.issuetracker.version.VersionService;
+import com.example.issuetracker.project.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -40,7 +43,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -56,14 +58,15 @@ public class TicketService {
     private final TicketTransitionRepository transitionRepository;
     private final UserRepository userRepository;
     private final CurrentUser currentUser;
-    private final TicketSearchService searchService;
     private final ApplicationEventPublisher eventPublisher;
     private final VersionService versionService;
     private final TicketAttachmentService attachmentService;
+    private final ProjectService projectService;
 
     @Transactional
     public TicketDetail create(CreateTicketRequest request, List<MultipartFile> files) {
         User creator = currentUser.require();
+        Project project = projectService.requireAccessibleProject(request.projectId(), creator);
         ProductVersion affectedVersion = versionService.requireEnabled(request.affectedVersionId());
         Ticket ticket = new Ticket();
         ticket.setTicketNo(generateTicketNo());
@@ -73,6 +76,7 @@ public class TicketService {
         ticket.setPriority(request.priority());
         ticket.setStatus(TicketStatus.NEW);
         ticket.setCreator(creator);
+        ticket.setProject(project);
         ticket.setAffectedVersion(affectedVersion);
         ticketRepository.save(ticket);
         attachmentService.store(ticket, creator, files);
@@ -116,10 +120,12 @@ public class TicketService {
             TicketPriority priority,
             TicketScope scope,
             Long requestedCreatorId,
+            Long requestedProjectId,
             int page,
             int size
     ) {
         User user = currentUser.require();
+        Project project = projectService.resolveAccessibleProject(requestedProjectId, user);
         Set<String> permissions = currentUser.permissions(user);
         TicketFilter filter = resolveFilter(user, permissions, scope, requestedCreatorId);
         var pageable = PageRequest.of(
@@ -128,35 +134,13 @@ public class TicketService {
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 
-        if (StringUtils.hasText(keyword)
-                && filter.visibilityUserId() == null
-                && filter.creatorId() == null
-                && status == null
-                && priority == null) {
-            TicketSearchService.SearchResult searchResult =
-                    searchService.search(keyword.trim(), pageable.getPageNumber(), pageable.getPageSize());
-            if (searchResult.available()) {
-                List<Long> ids = searchResult.ids();
-                List<Ticket> tickets = ticketRepository.findAllWithUsersByIdIn(ids);
-                tickets.sort(Comparator.comparingInt(ticket -> ids.indexOf(ticket.getId())));
-                List<TicketSummary> content = tickets.stream().map(this::toSummary).toList();
-                int totalPages = (int) Math.ceil((double) searchResult.total() / pageable.getPageSize());
-                return new PageResult<>(
-                        content,
-                        pageable.getPageNumber(),
-                        pageable.getPageSize(),
-                        searchResult.total(),
-                        totalPages
-                );
-            }
-        }
-
         Page<Ticket> result = StringUtils.hasText(keyword)
                 ? ticketRepository.searchWithKeyword(
-                        keyword.trim(), status, priority,
+                        project.getId(), keyword.trim(), status, priority,
                         filter.visibilityUserId(), filter.creatorId(), pageable)
                 : ticketRepository.search(
-                        status, priority, filter.visibilityUserId(), filter.creatorId(), pageable);
+                        project.getId(), status, priority,
+                        filter.visibilityUserId(), filter.creatorId(), pageable);
         return new PageResult<>(
                 result.getContent().stream().map(this::toSummary).toList(),
                 result.getNumber(),
@@ -178,11 +162,13 @@ public class TicketService {
     public TicketDetail assign(Long id, AssignRequest request) {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
+        requireVisible(ticket, operator);
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.NEW, TicketStatus.ASSIGNED);
         User assignee = userRepository.findWithRolesById(request.assigneeId())
                 .filter(User::isEnabled)
                 .orElseThrow(() -> BusinessException.notFound("处理人不存在或已禁用"));
+        projectService.requireProjectMember(ticket.getProject().getId(), assignee.getId());
         boolean canProcess = assignee.getRoles().stream()
                 .flatMap(role -> role.getPermissions().stream())
                 .map(Permission::getCode)
@@ -200,6 +186,7 @@ public class TicketService {
     public TicketDetail start(Long id, ActionRequest request) {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
+        requireVisible(ticket, operator);
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.ASSIGNED);
         requireAssignee(ticket, operator);
@@ -212,6 +199,7 @@ public class TicketService {
     public TicketDetail resolve(Long id, ResolveRequest request) {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
+        requireVisible(ticket, operator);
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.IN_PROGRESS);
         requireAssignee(ticket, operator);
@@ -234,6 +222,7 @@ public class TicketService {
     public TicketDetail verify(Long id, VerifyRequest request) {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
+        requireVisible(ticket, operator);
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.RESOLVED);
         TicketStatus from = ticket.getStatus();
@@ -253,6 +242,7 @@ public class TicketService {
     public TicketDetail close(Long id, ActionRequest request) {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
+        requireVisible(ticket, operator);
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.VERIFIED);
         TicketStatus from = ticket.getStatus();
@@ -299,6 +289,7 @@ public class TicketService {
     }
 
     private void requireVisible(Ticket ticket, User user) {
+        projectService.requireAccessibleProject(ticket.getProject().getId(), user);
         if (currentUser.permissions(user).contains("ticket:read:all")) {
             return;
         }
@@ -316,6 +307,7 @@ public class TicketService {
     }
 
     private boolean requireModifiable(Ticket ticket, User operator) {
+        projectService.requireAccessibleProject(ticket.getProject().getId(), operator);
         if (ticket.getStatus() == TicketStatus.CLOSED) {
             throw BusinessException.forbidden("已关闭问题单仅允许查看");
         }
@@ -356,6 +348,7 @@ public class TicketService {
                 ticket.getCategory(),
                 ticket.getPriority(),
                 ticket.getStatus(),
+                toProjectSummary(ticket.getProject()),
                 toUserSummary(ticket.getCreator()),
                 toUserSummary(ticket.getAssignee()),
                 toVersionSummary(ticket.getAffectedVersion()),
@@ -376,6 +369,7 @@ public class TicketService {
                 ticket.getCategory(),
                 ticket.getPriority(),
                 ticket.getStatus(),
+                toProjectSummary(ticket.getProject()),
                 toUserSummary(ticket.getCreator()),
                 toUserSummary(ticket.getAssignee()),
                 toVersionSummary(ticket.getAffectedVersion()),
@@ -412,6 +406,10 @@ public class TicketService {
         return version == null
                 ? null
                 : new VersionSummary(version.getId(), version.getVersionNo(), version.getName());
+    }
+
+    private ProjectSummary toProjectSummary(Project project) {
+        return new ProjectSummary(project.getId(), project.getCode(), project.getName());
     }
 
     private TicketFilter resolveFilter(

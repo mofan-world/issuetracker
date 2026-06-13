@@ -13,6 +13,7 @@ public record TicketSearchDocument(
         String category,
         TicketPriority priority,
         TicketStatus status,
+        Long projectId,
         Long creatorId,
         Long assigneeId,
         Instant createdAt,

@@ -19,7 +19,8 @@ public final class TicketDtos {
             @NotBlank @Size(max = 20000) String description,
             @NotBlank @Size(max = 50) String category,
             @NotNull TicketPriority priority,
-            @NotNull Long affectedVersionId
+            @NotNull Long affectedVersionId,
+            @NotNull Long projectId
     ) {
     }
 
@@ -66,6 +67,9 @@ public final class TicketDtos {
     public record VersionSummary(Long id, String versionNo, String name) {
     }
 
+    public record ProjectSummary(Long id, String code, String name) {
+    }
+
     public record AttachmentView(
             Long id,
             String originalName,
@@ -83,6 +87,7 @@ public final class TicketDtos {
             String category,
             TicketPriority priority,
             TicketStatus status,
+            ProjectSummary project,
             UserSummary creator,
             UserSummary assignee,
             VersionSummary affectedVersion,
@@ -113,6 +118,7 @@ public final class TicketDtos {
             String category,
             TicketPriority priority,
             TicketStatus status,
+            ProjectSummary project,
             UserSummary creator,
             UserSummary assignee,
             VersionSummary affectedVersion,

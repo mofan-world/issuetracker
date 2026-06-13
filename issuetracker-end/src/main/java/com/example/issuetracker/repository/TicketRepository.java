@@ -18,30 +18,36 @@ import java.util.Optional;
 public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
 
     @Override
-    @EntityGraph(attributePaths = {"creator", "assignee", "affectedVersion", "resolvedVersion"})
+    @EntityGraph(attributePaths = {"project", "creator", "assignee", "affectedVersion", "resolvedVersion"})
     Optional<Ticket> findById(Long id);
 
-    @EntityGraph(attributePaths = {"creator", "assignee", "affectedVersion", "resolvedVersion"})
+    @EntityGraph(attributePaths = {"project", "creator", "assignee", "affectedVersion", "resolvedVersion"})
     Optional<Ticket> findByTicketNo(String ticketNo);
 
     @Query("""
             select t from Ticket t
             left join fetch t.creator
             left join fetch t.assignee
+            join fetch t.project
             left join fetch t.affectedVersion
             left join fetch t.resolvedVersion
-            where t.id in :ids
+            where t.id in :ids and t.project.id = :projectId
             """)
-    List<Ticket> findAllWithUsersByIdIn(@Param("ids") Collection<Long> ids);
+    List<Ticket> findAllWithUsersByIdIn(
+            @Param("ids") Collection<Long> ids,
+            @Param("projectId") Long projectId
+    );
 
     @Query("""
             select t from Ticket t
-            where (:status is null or t.status = :status)
+            where t.project.id = :projectId
+              and (:status is null or t.status = :status)
               and (:priority is null or t.priority = :priority)
               and (:visibilityUserId is null or t.creator.id = :visibilityUserId or t.assignee.id = :visibilityUserId)
               and (:creatorId is null or t.creator.id = :creatorId)
             """)
     Page<Ticket> search(
+            @Param("projectId") Long projectId,
             @Param("status") TicketStatus status,
             @Param("priority") TicketPriority priority,
             @Param("visibilityUserId") Long visibilityUserId,
@@ -51,7 +57,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
     @Query("""
             select t from Ticket t
-            where (:status is null or t.status = :status)
+            where t.project.id = :projectId
+              and (:status is null or t.status = :status)
               and (:priority is null or t.priority = :priority)
               and (:visibilityUserId is null or t.creator.id = :visibilityUserId or t.assignee.id = :visibilityUserId)
               and (:creatorId is null or t.creator.id = :creatorId)
@@ -62,6 +69,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
               )
             """)
     Page<Ticket> searchWithKeyword(
+            @Param("projectId") Long projectId,
             @Param("keyword") String keyword,
             @Param("status") TicketStatus status,
             @Param("priority") TicketPriority priority,
