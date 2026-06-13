@@ -13,6 +13,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 appuser
 COPY --from=build /workspace/target/issue-tracker-1.0.0.jar app.jar
+RUN mkdir -p /home/appuser/logs/nacos \
+    && chown -R appuser:appuser /home/appuser/logs \
+    && mkdir -p /home/appuser/uploads/attachments \
+    && chown -R appuser:appuser /home/appuser/uploads
 USER appuser
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+UseG1GC", "-jar", "/app/app.jar"]
