@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { http, errorMessage } from '@/api/http'
+import { useAuthStore } from '@/stores/auth'
 import type { PageResult } from '@/types'
 
 interface Role {
@@ -22,14 +24,49 @@ interface User {
   createdAt: string
 }
 
+const auth = useAuthStore()
 const loading = ref(false)
+const saving = ref(false)
 const users = ref<User[]>([])
 const roles = ref<Role[]>([])
 const total = ref(0)
 const query = reactive({ keyword: '', page: 1, size: 20 })
-const roleDialog = ref(false)
-const editingUser = ref<User>()
-const selectedRoles = ref<number[]>([])
+const dialogVisible = ref(false)
+const editingId = ref<number>()
+const formRef = ref<FormInstance>()
+const form = reactive({
+  username: '',
+  email: '',
+  displayName: '',
+  password: '',
+  enabled: true,
+  roleIds: [] as number[],
+})
+const dialogTitle = computed(() => editingId.value ? '编辑用户' : '新增用户')
+const rules: FormRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { pattern: /^[a-zA-Z0-9_]{4,50}$/, message: '4-50 位字母、数字或下划线', trigger: 'blur' },
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
+  ],
+  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }],
+  password: [{
+    validator: (_rule, value, callback) => {
+      if (!editingId.value && !value) {
+        callback(new Error('新增用户必须设置密码'))
+      } else if (value && (value.length < 8 || !/[A-Za-z]/.test(value) || !/\d/.test(value))) {
+        callback(new Error('密码至少 8 位且同时包含字母和数字'))
+      } else {
+        callback()
+      }
+    },
+    trigger: 'blur',
+  }],
+  roleIds: [{ type: 'array', min: 1, required: true, message: '至少选择一个角色', trigger: 'change' }],
+}
 
 async function load() {
   loading.value = true
@@ -50,21 +87,54 @@ async function load() {
   }
 }
 
-function editRoles(user: User) {
-  editingUser.value = user
-  selectedRoles.value = roles.value.filter((role) => user.roles.includes(role.code)).map((role) => role.id)
-  roleDialog.value = true
+function resetForm() {
+  editingId.value = undefined
+  Object.assign(form, {
+    username: '',
+    email: '',
+    displayName: '',
+    password: '',
+    enabled: true,
+    roleIds: [],
+  })
+  formRef.value?.clearValidate()
 }
 
-async function saveRoles() {
-  if (!editingUser.value || selectedRoles.value.length === 0) return
+function createUser() {
+  resetForm()
+  dialogVisible.value = true
+}
+
+function editUser(user: User) {
+  editingId.value = user.id
+  Object.assign(form, {
+    username: user.username,
+    email: user.email,
+    displayName: user.displayName,
+    password: '',
+    enabled: user.enabled,
+    roleIds: roles.value.filter((role) => user.roles.includes(role.code)).map((role) => role.id),
+  })
+  dialogVisible.value = true
+}
+
+async function saveUser() {
+  await formRef.value?.validate()
+  saving.value = true
   try {
-    await http.put(`/api/admin/users/${editingUser.value.id}/roles`, { roleIds: selectedRoles.value })
-    ElMessage.success('角色已更新')
-    roleDialog.value = false
+    const payload = { ...form, password: form.password || null }
+    if (editingId.value) {
+      await http.put(`/api/admin/users/${editingId.value}`, payload)
+    } else {
+      await http.post('/api/admin/users', payload)
+    }
+    ElMessage.success(editingId.value ? '用户已更新' : '用户已创建，可以使用该账号登录')
+    dialogVisible.value = false
     await load()
   } catch (error) {
     ElMessage.error(errorMessage(error))
+  } finally {
+    saving.value = false
   }
 }
 
@@ -75,6 +145,21 @@ async function toggleEnabled(user: User) {
   } catch (error) {
     user.enabled = !user.enabled
     ElMessage.error(errorMessage(error))
+  }
+}
+
+async function deleteUser(user: User) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除用户 ${user.displayName}（${user.username}）？历史问题单记录会保留，该账号将无法登录。`,
+      '删除用户',
+      { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' },
+    )
+    await http.delete(`/api/admin/users/${user.id}`)
+    ElMessage.success('用户已删除')
+    await load()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(errorMessage(error))
   }
 }
 
@@ -93,17 +178,25 @@ onMounted(load)
         <span class="eyebrow">ACCESS CONTROL</span>
         <h2>用户与角色</h2>
       </div>
-      <p>角色决定用户可以查看和执行的业务操作。</p>
+      <el-button type="primary" :icon="Plus" @click="createUser">新增用户</el-button>
     </div>
+
     <div class="filter-bar">
-      <el-input v-model="query.keyword" class="search-input" clearable placeholder="搜索用户名或显示名称" @keyup.enter="search" />
-      <el-button type="primary" @click="search">查询</el-button>
+      <el-input
+        v-model="query.keyword"
+        class="search-input"
+        clearable
+        placeholder="搜索用户名、显示名称或邮箱"
+        @keyup.enter="search"
+      />
+      <el-button @click="search">查询</el-button>
     </div>
+
     <el-table v-loading="loading" :data="users">
-      <el-table-column prop="username" label="用户名" width="150" />
-      <el-table-column prop="displayName" label="显示名称" width="150" />
+      <el-table-column prop="username" label="用户名" width="145" />
+      <el-table-column prop="displayName" label="显示名称" width="145" />
       <el-table-column prop="email" label="邮箱" min-width="220" />
-      <el-table-column label="角色" min-width="240">
+      <el-table-column label="角色" min-width="250">
         <template #default="{ row }">
           <el-tag v-for="role in row.roles" :key="role" class="role-tag" effect="plain">{{ role }}</el-tag>
         </template>
@@ -111,15 +204,23 @@ onMounted(load)
       <el-table-column label="创建时间" width="175">
         <template #default="{ row }">{{ dayjs(row.createdAt).format('YYYY-MM-DD HH:mm') }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="90">
+      <el-table-column label="启用" width="80">
         <template #default="{ row }">
-          <el-switch v-model="row.enabled" @change="toggleEnabled(row)" />
+          <el-switch
+            v-model="row.enabled"
+            :disabled="row.id === auth.user?.id"
+            @change="toggleEnabled(row)"
+          />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
-        <template #default="{ row }"><el-button link type="primary" @click="editRoles(row)">设置角色</el-button></template>
+      <el-table-column label="操作" width="145" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="editUser(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="row.id === auth.user?.id" @click="deleteUser(row)">删除</el-button>
+        </template>
       </el-table-column>
     </el-table>
+
     <div class="pagination">
       <el-pagination
         v-model:current-page="query.page"
@@ -130,16 +231,44 @@ onMounted(load)
       />
     </div>
 
-    <el-dialog v-model="roleDialog" :title="`设置角色 · ${editingUser?.displayName || ''}`" width="520px">
-      <el-checkbox-group v-model="selectedRoles" class="role-options">
-        <el-checkbox v-for="role in roles" :key="role.id" :value="role.id">
-          <strong>{{ role.name }}</strong>
-          <span>{{ role.code }}</span>
-        </el-checkbox>
-      </el-checkbox-group>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="680px"
+      @closed="resetForm"
+    >
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+        <div class="form-grid">
+          <el-form-item label="用户名" prop="username">
+            <el-input v-model="form.username" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="显示名称" prop="displayName">
+            <el-input v-model="form.displayName" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="邮箱" prop="email">
+            <el-input v-model="form.email" />
+          </el-form-item>
+          <el-form-item :label="editingId ? '重置密码（留空不修改）' : '登录密码'" prop="password">
+            <el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
+          </el-form-item>
+        </div>
+        <el-form-item label="角色" prop="roleIds">
+          <el-checkbox-group v-model="form.roleIds" class="role-options">
+            <el-checkbox v-for="role in roles" :key="role.id" :value="role.id">
+              <strong>{{ role.name }}</strong>
+              <span>{{ role.code }}</span>
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="账号状态">
+          <el-switch v-model="form.enabled" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <el-button @click="roleDialog = false">取消</el-button>
-        <el-button type="primary" :disabled="selectedRoles.length === 0" @click="saveRoles">保存</el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveUser">保存</el-button>
       </template>
     </el-dialog>
   </section>

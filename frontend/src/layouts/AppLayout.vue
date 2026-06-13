@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Tickets, Plus, User, SwitchButton } from '@element-plus/icons-vue'
+import { Tickets, Plus, User, SwitchButton, Collection } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -9,6 +9,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const activeMenu = computed(() => {
+  if (route.path.startsWith('/admin/versions')) return '/admin/versions'
   if (route.path.startsWith('/admin')) return '/admin/users'
   if (route.path === '/tickets/new') return '/tickets/new'
   return '/tickets'
@@ -44,6 +45,10 @@ async function logout() {
           <el-icon><User /></el-icon>
           <span>用户与权限</span>
         </el-menu-item>
+        <el-menu-item v-if="auth.hasPermission('version:manage')" index="/admin/versions">
+          <el-icon><Collection /></el-icon>
+          <span>版本管理</span>
+        </el-menu-item>
       </el-menu>
 
       <div class="sidebar-user">
@@ -70,4 +75,3 @@ async function logout() {
     </main>
   </div>
 </template>
-

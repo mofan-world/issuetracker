@@ -17,7 +17,7 @@ public class DatabaseUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        var user = userRepository.findByUsernameIgnoreCase(username)
+        var user = userRepository.findByUsernameIgnoreCaseAndDeletedFalse(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
         String[] authorities = user.getRoles().stream()
                 .flatMap(role -> role.getPermissions().stream())
@@ -27,7 +27,7 @@ public class DatabaseUserDetailsService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
                 .password(user.getPasswordHash())
-                .disabled(!user.isEnabled())
+                .disabled(!user.isEnabled() || user.isDeleted())
                 .authorities(authorities)
                 .build();
     }

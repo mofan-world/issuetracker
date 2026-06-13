@@ -48,6 +48,14 @@ public class Ticket extends BaseEntity {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "affected_version_id", nullable = false)
+    private ProductVersion affectedVersion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_version_id")
+    private ProductVersion resolvedVersion;
+
     @Column(columnDefinition = "text")
     private String resolution;
 

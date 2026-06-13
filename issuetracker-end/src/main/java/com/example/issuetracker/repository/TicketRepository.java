@@ -18,16 +18,18 @@ import java.util.Optional;
 public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
 
     @Override
-    @EntityGraph(attributePaths = {"creator", "assignee"})
+    @EntityGraph(attributePaths = {"creator", "assignee", "affectedVersion", "resolvedVersion"})
     Optional<Ticket> findById(Long id);
 
-    @EntityGraph(attributePaths = {"creator", "assignee"})
+    @EntityGraph(attributePaths = {"creator", "assignee", "affectedVersion", "resolvedVersion"})
     Optional<Ticket> findByTicketNo(String ticketNo);
 
     @Query("""
             select t from Ticket t
             left join fetch t.creator
             left join fetch t.assignee
+            left join fetch t.affectedVersion
+            left join fetch t.resolvedVersion
             where t.id in :ids
             """)
     List<Ticket> findAllWithUsersByIdIn(@Param("ids") Collection<Long> ids);
@@ -63,4 +65,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
             @Param("userId") Long userId,
             Pageable pageable
     );
+
+    long countByAffectedVersionIdOrResolvedVersionId(Long affectedVersionId, Long resolvedVersionId);
 }

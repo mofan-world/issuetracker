@@ -420,6 +420,58 @@ h1, h2, p {
   white-space: pre-wrap;
 }
 
+.attachment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfb;
+}
+
+.attachment-item strong,
+.attachment-item span {
+  display: block;
+}
+
+.attachment-item span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.attachment-upload {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.attachment-upload .el-upload-list {
+  min-width: 360px;
+}
+
+.block-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.block-heading .block-label {
+  margin-bottom: 14px;
+}
+
+.el-upload-dragger {
+  width: 100%;
+}
+
 .full-width {
   width: 100%;
 }
@@ -576,4 +628,3 @@ h1, h2, p {
     padding-left: 24px;
   }
 }
-

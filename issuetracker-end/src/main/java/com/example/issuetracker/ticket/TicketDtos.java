@@ -18,7 +18,18 @@ public final class TicketDtos {
             @NotBlank @Size(max = 200) String title,
             @NotBlank @Size(max = 20000) String description,
             @NotBlank @Size(max = 50) String category,
-            @NotNull TicketPriority priority
+            @NotNull TicketPriority priority,
+            @NotNull Long affectedVersionId
+    ) {
+    }
+
+    public record UpdateTicketRequest(
+            @NotBlank @Size(max = 200) String title,
+            @NotBlank @Size(max = 20000) String description,
+            @NotBlank @Size(max = 50) String category,
+            @NotNull TicketPriority priority,
+            @NotNull Long affectedVersionId,
+            @NotNull Long version
     ) {
     }
 
@@ -37,7 +48,8 @@ public final class TicketDtos {
 
     public record ResolveRequest(
             @NotNull Long version,
-            @NotBlank @Size(max = 20000) String resolution
+            @NotBlank @Size(max = 20000) String resolution,
+            @NotNull Long resolvedVersionId
     ) {
     }
 
@@ -51,6 +63,19 @@ public final class TicketDtos {
     public record UserSummary(Long id, String username, String displayName) {
     }
 
+    public record VersionSummary(Long id, String versionNo, String name) {
+    }
+
+    public record AttachmentView(
+            Long id,
+            String originalName,
+            String contentType,
+            long fileSize,
+            UserSummary uploader,
+            Instant createdAt
+    ) {
+    }
+
     public record TicketSummary(
             Long id,
             String ticketNo,
@@ -60,6 +85,8 @@ public final class TicketDtos {
             TicketStatus status,
             UserSummary creator,
             UserSummary assignee,
+            VersionSummary affectedVersion,
+            VersionSummary resolvedVersion,
             long version,
             Instant createdAt,
             Instant updatedAt
@@ -87,6 +114,8 @@ public final class TicketDtos {
             TicketStatus status,
             UserSummary creator,
             UserSummary assignee,
+            VersionSummary affectedVersion,
+            VersionSummary resolvedVersion,
             String resolution,
             long version,
             Instant createdAt,
@@ -94,7 +123,8 @@ public final class TicketDtos {
             Instant resolvedAt,
             Instant verifiedAt,
             Instant closedAt,
-            List<TransitionView> transitions
+            List<TransitionView> transitions,
+            List<AttachmentView> attachments
     ) {
     }
 

@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Fri Jun 12 22:53:19 CST 2026
+@default-aliyun-public-https\://maven.aliyun.com/repository/public/.lastUpdated=1781275999445
+https\://maven.aliyun.com/repository/public/.error=Could not transfer artifact org.springframework.boot\:spring-boot-starter-parent\:pom\:3.5.15 from/to aliyun-public (https\://maven.aliyun.com/repository/public)\: Permission denied\: no further information

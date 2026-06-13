@@ -1,6 +1,6 @@
 # 问题单跟踪系统
 
-面向约 20 万注册用户的问题单管理系统。第一版采用可水平扩展的模块化单体，覆盖注册登录、问题单创建与流转、验证关闭以及 RBAC 权限控制。
+面向约 20 万注册用户的问题单管理系统。采用可水平扩展的模块化单体，覆盖注册登录、用户管理、产品版本、问题单创建与流转、附件、验证关闭以及 RBAC 权限控制。
 
 ## 技术栈
 
@@ -35,6 +35,9 @@ stateDiagram-v2
 | `USER` | 创建问题单、查看本人相关问题单 |
 | `AGENT` | 查看全部问题单、处理被分派的问题单 |
 | `REVIEWER` | 验证、驳回和关闭问题单 |
+| `TESTER` | 创建和验证问题单、关闭验证通过的问题单 |
+| `DEVELOPER` | 查看全部问题单、处理被分派的问题单并提交解决版本 |
+| `MANAGER` | 用户、角色、版本和全部问题单管理 |
 | `ADMIN` | 全部权限、分派问题单、管理用户角色 |
 
 新注册用户默认获得 `USER` 角色。首次启动会创建管理员：
@@ -99,12 +102,22 @@ npm.cmd run dev
 | `POST` | `/api/auth/refresh` | 轮换刷新令牌 |
 | `GET` | `/api/tickets` | 分页检索问题单 |
 | `POST` | `/api/tickets` | 创建问题单 |
+| `PUT` | `/api/tickets/{id}` | 更新问题单并追加附件 |
 | `POST` | `/api/tickets/{id}/assign` | 分派 |
 | `POST` | `/api/tickets/{id}/start` | 开始处理 |
 | `POST` | `/api/tickets/{id}/resolve` | 提交解决方案 |
 | `POST` | `/api/tickets/{id}/verify` | 验证通过或驳回 |
 | `POST` | `/api/tickets/{id}/close` | 关闭 |
+| `POST` | `/api/tickets/{id}/attachments` | 上传附件 |
+| `GET` | `/api/tickets/attachments/{id}` | 下载附件 |
+| `POST` | `/api/admin/users` | 管理员创建可登录用户 |
+| `PUT` | `/api/admin/users/{id}` | 更新用户、密码和角色 |
+| `DELETE` | `/api/admin/users/{id}` | 逻辑删除用户 |
 | `PUT` | `/api/admin/users/{id}/roles` | 设置角色 |
+| `GET/POST` | `/api/versions` | 查询或创建产品版本 |
+| `PUT/DELETE` | `/api/versions/{id}` | 更新或删除产品版本 |
+
+创建问题单必须指定问题所在版本。开发人员提交解决方案时必须指定解决版本。附件支持 Word、Excel、PDF、常见图片、文本、CSV 和 ZIP，默认单文件最大 20MB，每张问题单最多 20 个附件。
 
 ## 20 万用户容量设计
 

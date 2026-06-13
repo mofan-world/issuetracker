@@ -9,5 +9,6 @@ issuetracker-end/.m2/
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+issuetracker-end/data/
 
 data/

@@ -45,6 +45,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/UserManagementView.vue'),
         meta: { title: '用户与权限', permission: 'user:manage' },
       },
+      {
+        path: 'admin/versions',
+        component: () => import('@/views/VersionManagementView.vue'),
+        meta: { title: '版本管理', permission: 'version:manage' },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
@@ -78,4 +83,3 @@ router.beforeEach(async (to) => {
 })
 
 export default router
-

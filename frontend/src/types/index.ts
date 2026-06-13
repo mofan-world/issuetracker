@@ -7,6 +7,7 @@ export type TicketStatus =
   | 'CLOSED'
 
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type ProductVersionStatus = 'PLANNED' | 'ACTIVE' | 'RELEASED' | 'ARCHIVED'
 
 export interface UserProfile {
   id: number
@@ -30,6 +31,28 @@ export interface UserSummary {
   displayName: string
 }
 
+export interface VersionOption {
+  id: number
+  versionNo: string
+  name: string
+  status: ProductVersionStatus
+}
+
+export interface VersionSummary {
+  id: number
+  versionNo: string
+  name: string
+}
+
+export interface TicketAttachment {
+  id: number
+  originalName: string
+  contentType?: string
+  fileSize: number
+  uploader: UserSummary
+  createdAt: string
+}
+
 export interface TicketSummary {
   id: number
   ticketNo: string
@@ -39,6 +62,8 @@ export interface TicketSummary {
   status: TicketStatus
   creator: UserSummary
   assignee?: UserSummary
+  affectedVersion: VersionSummary
+  resolvedVersion?: VersionSummary
   version: number
   createdAt: string
   updatedAt: string
@@ -61,6 +86,7 @@ export interface TicketDetail extends TicketSummary {
   verifiedAt?: string
   closedAt?: string
   transitions: TicketTransition[]
+  attachments: TicketAttachment[]
 }
 
 export interface PageResult<T> {
@@ -76,4 +102,3 @@ export interface ApiError {
   message: string
   fieldErrors?: Record<string, string>
 }
-

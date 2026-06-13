@@ -71,7 +71,7 @@ public class AuthService {
         } catch (AuthenticationException ex) {
             throw new BusinessException("INVALID_CREDENTIALS", "用户名或密码错误", HttpStatus.UNAUTHORIZED);
         }
-        User user = userRepository.findByUsernameIgnoreCase(request.username().trim())
+        User user = userRepository.findByUsernameIgnoreCaseAndDeletedFalse(request.username().trim())
                 .orElseThrow(() -> new BusinessException(
                         "INVALID_CREDENTIALS", "用户名或密码错误", HttpStatus.UNAUTHORIZED));
         return issueTokens(user);

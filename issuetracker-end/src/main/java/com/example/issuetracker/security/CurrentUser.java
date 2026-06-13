@@ -23,7 +23,8 @@ public class CurrentUser {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw BusinessException.forbidden("请先登录");
         }
-        return userRepository.findByUsernameIgnoreCase(authentication.getName())
+        return userRepository.findByUsernameIgnoreCaseAndDeletedFalse(authentication.getName())
+                .filter(User::isEnabled)
                 .orElseThrow(() -> BusinessException.forbidden("当前用户不存在或已失效"));
     }
 

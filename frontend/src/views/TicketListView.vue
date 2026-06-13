@@ -110,6 +110,9 @@ onMounted(load)
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
         <el-table-column prop="category" label="分类" width="120" />
+        <el-table-column label="所在版本" width="120">
+          <template #default="{ row }">{{ row.affectedVersion.versionNo }}</template>
+        </el-table-column>
         <el-table-column label="优先级" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)" effect="light">

@@ -1,7 +1,9 @@
 package com.example.issuetracker.ticket;
 
 import com.example.issuetracker.common.BusinessException;
+import com.example.issuetracker.attachment.TicketAttachmentService;
 import com.example.issuetracker.domain.Permission;
+import com.example.issuetracker.domain.ProductVersion;
 import com.example.issuetracker.domain.Ticket;
 import com.example.issuetracker.domain.TicketPriority;
 import com.example.issuetracker.domain.TicketStatus;
@@ -19,8 +21,11 @@ import com.example.issuetracker.ticket.TicketDtos.ResolveRequest;
 import com.example.issuetracker.ticket.TicketDtos.TicketDetail;
 import com.example.issuetracker.ticket.TicketDtos.TicketSummary;
 import com.example.issuetracker.ticket.TicketDtos.TransitionView;
+import com.example.issuetracker.ticket.TicketDtos.UpdateTicketRequest;
 import com.example.issuetracker.ticket.TicketDtos.UserSummary;
+import com.example.issuetracker.ticket.TicketDtos.VersionSummary;
 import com.example.issuetracker.ticket.TicketDtos.VerifyRequest;
+import com.example.issuetracker.version.VersionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -29,6 +34,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -51,10 +57,13 @@ public class TicketService {
     private final CurrentUser currentUser;
     private final TicketSearchService searchService;
     private final ApplicationEventPublisher eventPublisher;
+    private final VersionService versionService;
+    private final TicketAttachmentService attachmentService;
 
     @Transactional
-    public TicketDetail create(CreateTicketRequest request) {
+    public TicketDetail create(CreateTicketRequest request, List<MultipartFile> files) {
         User creator = currentUser.require();
+        ProductVersion affectedVersion = versionService.requireEnabled(request.affectedVersionId());
         Ticket ticket = new Ticket();
         ticket.setTicketNo(generateTicketNo());
         ticket.setTitle(request.title().trim());
@@ -63,8 +72,36 @@ public class TicketService {
         ticket.setPriority(request.priority());
         ticket.setStatus(TicketStatus.NEW);
         ticket.setCreator(creator);
+        ticket.setAffectedVersion(affectedVersion);
         ticketRepository.save(ticket);
+        attachmentService.store(ticket, creator, files);
         recordTransition(ticket, creator, null, TicketStatus.NEW, "CREATE", null);
+        eventPublisher.publishEvent(new TicketChangedEvent(ticket.getId(), false));
+        return toDetail(ticket, transitionRepository.findByTicketIdOrderByCreatedAtAsc(ticket.getId()));
+    }
+
+    @Transactional
+    public TicketDetail update(Long id, UpdateTicketRequest request, List<MultipartFile> files) {
+        User operator = currentUser.require();
+        Ticket ticket = requireTicket(id);
+        checkVersion(ticket, request.version());
+        requireModifiable(ticket, operator);
+        ProductVersion affectedVersion = versionService.requireEnabled(request.affectedVersionId());
+        ticket.setTitle(request.title().trim());
+        ticket.setDescription(request.description().trim());
+        ticket.setCategory(request.category().trim());
+        ticket.setPriority(request.priority());
+        ticket.setAffectedVersion(affectedVersion);
+        ticketRepository.saveAndFlush(ticket);
+        attachmentService.store(ticket, operator, files);
+        recordTransition(
+                ticket,
+                operator,
+                ticket.getStatus(),
+                ticket.getStatus(),
+                "UPDATE",
+                "更新问题单信息"
+        );
         eventPublisher.publishEvent(new TicketChangedEvent(ticket.getId(), false));
         return toDetail(ticket, transitionRepository.findByTicketIdOrderByCreatedAtAsc(ticket.getId()));
     }
@@ -166,11 +203,19 @@ public class TicketService {
         checkVersion(ticket, request.version());
         TicketWorkflow.require(ticket.getStatus(), TicketStatus.IN_PROGRESS);
         requireAssignee(ticket, operator);
+        ProductVersion resolvedVersion = versionService.requireEnabled(request.resolvedVersionId());
         TicketStatus from = ticket.getStatus();
         ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setResolution(request.resolution().trim());
+        ticket.setResolvedVersion(resolvedVersion);
         ticket.setResolvedAt(Instant.now());
-        return saveTransition(ticket, operator, from, "RESOLVE", request.resolution());
+        return saveTransition(
+                ticket,
+                operator,
+                from,
+                "RESOLVE",
+                "提交解决方案，解决版本: " + resolvedVersion.getVersionNo()
+        );
     }
 
     @Transactional
@@ -186,6 +231,8 @@ public class TicketService {
             return saveTransition(ticket, operator, from, "VERIFY_PASS", request.comment());
         }
         ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setResolvedVersion(null);
+        ticket.setResolvedAt(null);
         ticket.setVerifiedAt(null);
         return saveTransition(ticket, operator, from, "VERIFY_REJECT", request.comment());
     }
@@ -256,6 +303,18 @@ public class TicketService {
         }
     }
 
+    private void requireModifiable(Ticket ticket, User operator) {
+        Set<String> permissions = currentUser.permissions(operator);
+        boolean manager = permissions.contains("ticket:update:all")
+                && ticket.getStatus() != TicketStatus.CLOSED;
+        boolean creator = permissions.contains("ticket:update")
+                && ticket.getCreator().getId().equals(operator.getId())
+                && (ticket.getStatus() == TicketStatus.NEW || ticket.getStatus() == TicketStatus.ASSIGNED);
+        if (!manager && !creator) {
+            throw BusinessException.forbidden("当前状态或权限不允许更新问题单");
+        }
+    }
+
     private void checkVersion(Ticket ticket, Long version) {
         if (ticket.getVersion() != version) {
             throw new BusinessException(
@@ -281,6 +340,8 @@ public class TicketService {
                 ticket.getStatus(),
                 toUserSummary(ticket.getCreator()),
                 toUserSummary(ticket.getAssignee()),
+                toVersionSummary(ticket.getAffectedVersion()),
+                toVersionSummary(ticket.getResolvedVersion()),
                 ticket.getVersion(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt()
@@ -298,6 +359,8 @@ public class TicketService {
                 ticket.getStatus(),
                 toUserSummary(ticket.getCreator()),
                 toUserSummary(ticket.getAssignee()),
+                toVersionSummary(ticket.getAffectedVersion()),
+                toVersionSummary(ticket.getResolvedVersion()),
                 ticket.getResolution(),
                 ticket.getVersion(),
                 ticket.getCreatedAt(),
@@ -305,7 +368,8 @@ public class TicketService {
                 ticket.getResolvedAt(),
                 ticket.getVerifiedAt(),
                 ticket.getClosedAt(),
-                transitions.stream().map(this::toTransitionView).toList()
+                transitions.stream().map(this::toTransitionView).toList(),
+                attachmentService.listViews(ticket.getId())
         );
     }
 
@@ -323,5 +387,11 @@ public class TicketService {
 
     private UserSummary toUserSummary(User user) {
         return user == null ? null : new UserSummary(user.getId(), user.getUsername(), user.getDisplayName());
+    }
+
+    private VersionSummary toVersionSummary(ProductVersion version) {
+        return version == null
+                ? null
+                : new VersionSummary(version.getId(), version.getVersionNo(), version.getName());
     }
 }

@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,6 +34,11 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(nullable = false)
+    private boolean deleted;
+
+    private Instant deletedAt;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
