@@ -1,6 +1,5 @@
 package com.example.issuetracker.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,8 +13,10 @@ import java.time.Duration;
 public class RedisConfig {
 
     @Bean
-    RedisCacheManagerBuilderCustomizer cacheCustomizer(ObjectMapper objectMapper) {
-        var serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+    RedisCacheManagerBuilderCustomizer cacheCustomizer() {
+        // The no-arg serializer enables type metadata. Passing the application's
+        // ObjectMapper here would deserialize cached DTOs as LinkedHashMap values.
+        var serializer = new GenericJackson2JsonRedisSerializer();
         var pair = RedisSerializationContext.SerializationPair.fromSerializer(serializer);
         return builder -> builder
                 .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
