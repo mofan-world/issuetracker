@@ -130,6 +130,16 @@ npm.cmd run dev
 
 前端默认使用中文（包含 Element Plus 分页文案），右上角可切换中英文，语言偏好保存在浏览器本地。
 
+## 压测数据
+
+需要百万级数据时执行独立脚本，脚本不会在正常启动时自动运行：
+
+```powershell
+.\scripts\load-test\generate-load-test-data.ps1
+```
+
+脚本生成测试、开发各 1000 个账号、管理员 50 个账号，并为每名测试人员创建 1000 张问题单，其中已关闭与处理中问题单比例为 9:1。详细说明见 `scripts/load-test/README.md`。
+
 ## 20 万用户容量设计
 
 - 应用无状态部署，访问令牌使用 JWT，刷新令牌集中存放 Redis，可通过 Nacos 注册多个后端实例。

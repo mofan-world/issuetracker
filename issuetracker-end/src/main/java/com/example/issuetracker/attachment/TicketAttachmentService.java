@@ -96,6 +96,9 @@ public class TicketAttachmentService {
     @Transactional
     public void delete(Long attachmentId) {
         TicketAttachment attachment = requireAttachment(attachmentId);
+        if (attachment.getTicket().getStatus() == TicketStatus.CLOSED) {
+            throw BusinessException.forbidden("已关闭问题单仅允许查看，不能删除附件");
+        }
         User operator = currentUser.require();
         Set<String> permissions = currentUser.permissions(operator);
         boolean owner = attachment.getUploader().getId().equals(operator.getId());
@@ -137,15 +140,16 @@ public class TicketAttachmentService {
     }
 
     private void requireModifiable(Ticket ticket, User user) {
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
+            throw BusinessException.forbidden("已关闭问题单仅允许查看，不能上传附件");
+        }
         Set<String> permissions = currentUser.permissions(user);
         boolean manager = permissions.contains("ticket:update:all");
         boolean creatorCanEdit = permissions.contains("ticket:update")
-                && ticket.getCreator().getId().equals(user.getId())
-                && (ticket.getStatus() == TicketStatus.NEW || ticket.getStatus() == TicketStatus.ASSIGNED);
+                && ticket.getCreator().getId().equals(user.getId());
         boolean assigneeCanAttach = permissions.contains("ticket:process")
                 && ticket.getAssignee() != null
-                && ticket.getAssignee().getId().equals(user.getId())
-                && (ticket.getStatus() == TicketStatus.ASSIGNED || ticket.getStatus() == TicketStatus.IN_PROGRESS);
+                && ticket.getAssignee().getId().equals(user.getId());
         if (!manager && !creatorCanEdit && !assigneeCanAttach) {
             throw BusinessException.forbidden("当前状态或权限不允许更新附件");
         }

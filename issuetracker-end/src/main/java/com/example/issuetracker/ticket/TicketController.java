@@ -84,7 +84,7 @@ public class TicketController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:update', 'ticket:update:all')")
+    @PreAuthorize("hasAnyAuthority('ticket:update', 'ticket:update:all', 'ticket:process')")
     public TicketDetail update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTicketRequest request
@@ -93,7 +93,7 @@ public class TicketController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:update', 'ticket:update:all')")
+    @PreAuthorize("hasAnyAuthority('ticket:update', 'ticket:update:all', 'ticket:process')")
     public TicketDetail updateWithAttachments(
             @PathVariable Long id,
             @Valid @RequestPart("request") UpdateTicketRequest request,

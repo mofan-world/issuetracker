@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
   disabledIds?: number[]
   respectEnabled?: boolean
   excludeArchived?: boolean
+  disabled?: boolean
 }>(), {
   placeholder: '请选择版本',
   clearable: false,
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<{
   disabledIds: () => [],
   respectEnabled: true,
   excludeArchived: false,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -89,6 +91,7 @@ function updateValue(value: unknown) {
     :data="treeData"
     :props="treeProps"
     :size="size"
+    :disabled="disabled"
     :placeholder="placeholder"
     :clearable="clearable"
     :default-expanded-keys="defaultExpandedKeys"

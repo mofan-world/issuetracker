@@ -86,13 +86,15 @@ public class TicketService {
         User operator = currentUser.require();
         Ticket ticket = requireTicket(id);
         checkVersion(ticket, request.version());
-        requireModifiable(ticket, operator);
-        ProductVersion affectedVersion = versionService.requireEnabled(request.affectedVersionId());
-        ticket.setTitle(request.title().trim());
+        boolean metadataModifiable = requireModifiable(ticket, operator);
+        if (metadataModifiable) {
+            ProductVersion affectedVersion = versionService.requireEnabled(request.affectedVersionId());
+            ticket.setTitle(request.title().trim());
+            ticket.setCategory(request.category().trim());
+            ticket.setPriority(request.priority());
+            ticket.setAffectedVersion(affectedVersion);
+        }
         ticket.setDescription(request.description().trim());
-        ticket.setCategory(request.category().trim());
-        ticket.setPriority(request.priority());
-        ticket.setAffectedVersion(affectedVersion);
         ticketRepository.saveAndFlush(ticket);
         attachmentService.store(ticket, operator, files);
         recordTransition(
@@ -101,7 +103,7 @@ public class TicketService {
                 ticket.getStatus(),
                 ticket.getStatus(),
                 "UPDATE",
-                "更新问题单信息"
+                metadataModifiable ? "更新问题单信息" : "补充问题单描述"
         );
         eventPublisher.publishEvent(new TicketChangedEvent(ticket.getId(), false));
         return toDetail(ticket, transitionRepository.findByTicketIdOrderByCreatedAtAsc(ticket.getId()));
@@ -313,16 +315,22 @@ public class TicketService {
         }
     }
 
-    private void requireModifiable(Ticket ticket, User operator) {
+    private boolean requireModifiable(Ticket ticket, User operator) {
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
+            throw BusinessException.forbidden("已关闭问题单仅允许查看");
+        }
         Set<String> permissions = currentUser.permissions(operator);
-        boolean manager = permissions.contains("ticket:update:all")
-                && ticket.getStatus() != TicketStatus.CLOSED;
-        boolean creator = permissions.contains("ticket:update")
-                && ticket.getCreator().getId().equals(operator.getId())
-                && (ticket.getStatus() == TicketStatus.NEW || ticket.getStatus() == TicketStatus.ASSIGNED);
-        if (!manager && !creator) {
+        boolean creator = ticket.getCreator().getId().equals(operator.getId())
+                && permissions.contains("ticket:update");
+        boolean assignee = ticket.getAssignee() != null
+                && ticket.getAssignee().getId().equals(operator.getId())
+                && permissions.contains("ticket:process");
+        boolean managerCanEditNew = ticket.getStatus() == TicketStatus.NEW
+                && permissions.contains("ticket:update:all");
+        if (!creator && !assignee && !managerCanEditNew) {
             throw BusinessException.forbidden("当前状态或权限不允许更新问题单");
         }
+        return ticket.getStatus() == TicketStatus.NEW && (creator || managerCanEditNew);
     }
 
     private void checkVersion(Ticket ticket, Long version) {

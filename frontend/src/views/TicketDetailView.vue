@@ -53,22 +53,30 @@ const resolveForm = reactive({
 const canAssign = computed(() =>
   auth.hasPermission('ticket:assign') && ['NEW', 'ASSIGNED'].includes(ticket.value?.status || ''),
 )
+const canEditMetadata = computed(() => {
+  if (!ticket.value || ticket.value.status !== 'NEW') return false
+  return auth.hasPermission('ticket:update:all')
+    || (
+      auth.hasPermission('ticket:update')
+      && ticket.value.creator.id === auth.user?.id
+    )
+})
 const canEdit = computed(() => {
   if (!ticket.value || ticket.value.status === 'CLOSED') return false
-  if (auth.hasPermission('ticket:update:all')) return true
-  return auth.hasPermission('ticket:update')
+  const creatorCanSupplement = auth.hasPermission('ticket:update')
     && ticket.value.creator.id === auth.user?.id
-    && ['NEW', 'ASSIGNED'].includes(ticket.value.status)
+  const assigneeCanSupplement = auth.hasPermission('ticket:process')
+    && ticket.value.assignee?.id === auth.user?.id
+  return canEditMetadata.value || creatorCanSupplement || assigneeCanSupplement
 })
 const canStart = computed(() =>
   auth.hasPermission('ticket:process')
   && ticket.value?.status === 'ASSIGNED'
   && ticket.value.assignee?.id === auth.user?.id,
 )
-const canUpload = computed(() => canEdit.value || (
-  auth.hasPermission('ticket:process')
-  && ticket.value?.assignee?.id === auth.user?.id
-  && ['ASSIGNED', 'IN_PROGRESS'].includes(ticket.value?.status || '')
+const canUpload = computed(() => ticket.value?.status !== 'CLOSED' && (
+  canEdit.value
+  || auth.hasPermission('ticket:update:all')
 ))
 const canResolve = computed(() =>
   auth.hasPermission('ticket:process')
@@ -246,6 +254,7 @@ async function downloadAttachment(attachment: TicketAttachment) {
 }
 
 function canDeleteAttachment(attachment: TicketAttachment) {
+  if (ticket.value?.status === 'CLOSED') return false
   return auth.hasPermission('attachment:delete:all')
     || attachment.uploader.id === auth.user?.id
     || ticket.value?.creator.id === auth.user?.id
@@ -475,14 +484,23 @@ onMounted(load)
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editVisible" title="编辑问题单" width="760px">
+    <el-dialog
+      v-model="editVisible"
+      :title="canEditMetadata ? '编辑问题单' : '补充问题描述'"
+      width="760px"
+    >
       <el-form :model="editForm" label-position="top">
         <el-form-item label="问题标题" required>
-          <el-input v-model="editForm.title" maxlength="200" show-word-limit />
+          <el-input
+            v-model="editForm.title"
+            maxlength="200"
+            show-word-limit
+            :disabled="!canEditMetadata"
+          />
         </el-form-item>
         <div class="form-grid">
           <el-form-item label="问题分类" required>
-            <el-select v-model="editForm.category" class="full-width">
+            <el-select v-model="editForm.category" class="full-width" :disabled="!canEditMetadata">
               <el-option label="功能异常" value="功能异常" />
               <el-option label="性能问题" value="性能问题" />
               <el-option label="数据问题" value="数据问题" />
@@ -495,12 +513,13 @@ onMounted(load)
             <VersionTreeSelect
               v-model="editForm.affectedVersionId"
               :options="versions"
+              :disabled="!canEditMetadata"
               placeholder="请选择或搜索问题所在版本"
             />
           </el-form-item>
         </div>
         <el-form-item label="优先级">
-          <el-radio-group v-model="editForm.priority">
+          <el-radio-group v-model="editForm.priority" :disabled="!canEditMetadata">
             <el-radio-button value="LOW">低</el-radio-button>
             <el-radio-button value="MEDIUM">中</el-radio-button>
             <el-radio-button value="HIGH">高</el-radio-button>
@@ -508,6 +527,9 @@ onMounted(load)
           </el-radio-group>
         </el-form-item>
         <el-form-item label="详细描述" required>
+          <div v-if="!canEditMetadata" class="form-tip">
+            流转过程中仅允许补充问题描述和附件，标题、分类、优先级、版本及流转记录不可修改。
+          </div>
           <MarkdownImageEditor
             v-model="editForm.description"
             :rows="7"
